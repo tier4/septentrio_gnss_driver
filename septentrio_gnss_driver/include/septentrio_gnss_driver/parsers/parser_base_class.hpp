@@ -109,7 +109,7 @@ class BaseParser
 	T parseBinary(const SBFStructT& bin_msg) noexcept(false)
 	{
 		throw ParseException("ParseBinary not implemented.");
-	};
+	}
 
 	/**
 	 * @brief Converts an NMEA sentence - both standardized and proprietary ones - into a ROS message pointer (e.g. nmea_msgs::GpggaPtr) and returns it

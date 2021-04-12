@@ -46,12 +46,12 @@ void io_comm_rx::Comm_IO::send(std::string cmd)
 
 bool io_comm_rx::Comm_IO::initializeTCP(std::string host, std::string port)
 {
-	ROS_DEBUG("Calling initializeTCP() method..");
+	RCLCPP_DEBUG(rclcpp::get_logger("communication_core"), "Calling initializeTCP() method..");
 	host_ = host;
 	port_ = port;
 	// The io_context, of which io_service is a typedef of; it represents your program's link to the 
 	// operating system's I/O services.
-	boost::shared_ptr<boost::asio::io_service> io_service(new boost::asio::io_service);
+	std::shared_ptr<boost::asio::io_service> io_service(new boost::asio::io_service);
 	boost::asio::ip::tcp::resolver::iterator endpoint;
 
 	try 
@@ -69,7 +69,7 @@ bool io_comm_rx::Comm_IO::initializeTCP(std::string host, std::string port)
 		return false;
 	}
 
-	boost::shared_ptr<boost::asio::ip::tcp::socket> socket(new boost::asio::ip::tcp::socket(*io_service));
+	std::shared_ptr<boost::asio::ip::tcp::socket> socket(new boost::asio::ip::tcp::socket(*io_service));
 
 	try 
 	{
@@ -85,21 +85,21 @@ bool io_comm_rx::Comm_IO::initializeTCP(std::string host, std::string port)
 		return false;
 	}
 
-	ROS_INFO("Connected to %s: %s.", endpoint->host_name().c_str(), endpoint->service_name().c_str());
+	RCLCPP_INFO(rclcpp::get_logger("communication_core"), "Connected to %s: %s.", endpoint->host_name().c_str(), endpoint->service_name().c_str());
 
 	if (manager_)
 	{
-		ROS_ERROR("You have called the InitializeTCP() method though an AsyncManager object is already available! Start all anew..");
+		RCLCPP_ERROR(rclcpp::get_logger("communication_core"), "You have called the InitializeTCP() method though an AsyncManager object is already available! Start all anew..");
 		return false;
 	}
-	setManager(boost::shared_ptr<Manager>(new AsyncManager<boost::asio::ip::tcp::socket>(socket, io_service)));
-	ROS_DEBUG("Leaving initializeTCP() method..");
+	setManager(std::shared_ptr<Manager>(new AsyncManager<boost::asio::ip::tcp::socket>(socket, io_service)));
+	RCLCPP_DEBUG(rclcpp::get_logger("communication_core"), "Leaving initializeTCP() method..");
 	return true;
 }
 
 void io_comm_rx::Comm_IO::initializeSBFFileReading(std::string file_name)
 {
-	ROS_DEBUG("Calling initializeSBFFileReading() method..");
+	RCLCPP_DEBUG(rclcpp::get_logger("communication_core"), "Calling initializeSBFFileReading() method..");
 	std::size_t buffer_size = 8192;
 	uint8_t * to_be_parsed;
 	to_be_parsed = new uint8_t[buffer_size];
@@ -121,13 +121,13 @@ void io_comm_rx::Comm_IO::initializeSBFFileReading(std::string file_name)
 	to_be_parsed = &vec_buf[0];
 	std::stringstream ss;
 	ss << "Opened and copied over from " << file_name;
-	ROS_DEBUG("%s", ss.str().c_str());
+	RCLCPP_DEBUG(rclcpp::get_logger("communication_core"), "%s", ss.str().c_str());
 	
 	while(1) // Loop will stop if we are done reading the SBF file
 	{
 		try
 		{
-			ROS_DEBUG("Calling read_callback_() method, with number of bytes to be parsed being %li", 
+			RCLCPP_DEBUG(rclcpp::get_logger("communication_core"), "Calling read_callback_() method, with number of bytes to be parsed being %li",
 				buffer_size);
 			handlers_.readCallback(to_be_parsed, buffer_size);
 		}
@@ -138,7 +138,7 @@ void io_comm_rx::Comm_IO::initializeSBFFileReading(std::string file_name)
 				break;
 			}
 			to_be_parsed = to_be_parsed + parsing_failed_here;
-			ROS_DEBUG("Parsing_failed_here is %li", parsing_failed_here);
+			RCLCPP_DEBUG(rclcpp::get_logger("communication_core"), "Parsing_failed_here is %li", parsing_failed_here);
 			continue;
 		}
 		if (to_be_parsed - &vec_buf[0] >= vec_buf.size()*sizeof(uint8_t))
@@ -148,19 +148,19 @@ void io_comm_rx::Comm_IO::initializeSBFFileReading(std::string file_name)
 		to_be_parsed = to_be_parsed + buffer_size;
 	}
 	delete [] to_be_parsed; // Freeing memory
-	ROS_DEBUG("Leaving initializeSBFFileReading() method..");
+	RCLCPP_DEBUG(rclcpp::get_logger("communication_core"), "Leaving initializeSBFFileReading() method..");
 }
 
 bool io_comm_rx::Comm_IO::initializeSerial(std::string port, uint32_t baudrate, std::string flowcontrol) 
 {
-	ROS_DEBUG("Calling initializeSerial() method..");
+	RCLCPP_DEBUG(rclcpp::get_logger("communication_core"), "Calling initializeSerial() method..");
 	serial_port_ = port;
 	baudrate_ = baudrate;
 	// The io_context, of which io_service is a typedef of; it represents your program's link to the 
 	// operating system's I/O services.
-	boost::shared_ptr<boost::asio::io_service> io_service(new boost::asio::io_service); 
+	std::shared_ptr<boost::asio::io_service> io_service(new boost::asio::io_service);
 	// To perform I/O operations the program needs an I/O object, here "serial".
-	boost::shared_ptr<boost::asio::serial_port> serial(new boost::asio::serial_port(*io_service));
+	std::shared_ptr<boost::asio::serial_port> serial(new boost::asio::serial_port(*io_service));
 
 	// We attempt the opening of the serial port..
 	try 
@@ -174,8 +174,8 @@ bool io_comm_rx::Comm_IO::initializeSerial(std::string port, uint32_t baudrate, 
 		return false;
 	}
 
-	ROS_INFO("Opened serial port %s", serial_port_.c_str());
-    ROS_DEBUG("Our boost version is %u.", BOOST_VERSION);
+	RCLCPP_INFO(rclcpp::get_logger("communication_core"), "Opened serial port %s", serial_port_.c_str());
+    RCLCPP_DEBUG(rclcpp::get_logger("communication_core"), "Our boost version is %u.", BOOST_VERSION);
 	if(BOOST_VERSION < 106600) // E.g. for ROS melodic (i.e. Ubuntu 18.04), the version is 106501, standing for 1.65.1.
 	{
 		// Workaround to set some options for the port manually, 
@@ -211,16 +211,16 @@ bool io_comm_rx::Comm_IO::initializeSerial(std::string port, uint32_t baudrate, 
 	// Set the I/O manager
 	if (manager_) 
 	{
-		ROS_ERROR("You have called the initializeSerial() method though an AsyncManager object is already available! Start all anew..");
+		RCLCPP_ERROR(rclcpp::get_logger("communication_core"), "You have called the initializeSerial() method though an AsyncManager object is already available! Start all anew..");
 		return false;
 	}
-	ROS_DEBUG("Creating new Async-Manager object..");
-	setManager(boost::shared_ptr<Manager>(new AsyncManager<boost::asio::serial_port>(serial, io_service)));
+	RCLCPP_DEBUG(rclcpp::get_logger("communication_core"), "Creating new Async-Manager object..");
+	setManager(std::shared_ptr<Manager>(new AsyncManager<boost::asio::serial_port>(serial, io_service)));
 	
 	// Setting the baudrate, incrementally..
-	ROS_DEBUG("Gradually increasing the baudrate to the desired value...");
+	RCLCPP_DEBUG(rclcpp::get_logger("communication_core"), "Gradually increasing the baudrate to the desired value...");
 	boost::asio::serial_port_base::baud_rate current_baudrate;
-	ROS_DEBUG("Initiated current_baudrate object...");
+	RCLCPP_DEBUG(rclcpp::get_logger("communication_core"), "Initiated current_baudrate object...");
 	try 
 	{
 		serial->get_option(current_baudrate); // Note that this sets current_baudrate.value() often to 115200, since by default, all Rx COM ports,
@@ -228,8 +228,8 @@ bool io_comm_rx::Comm_IO::initializeSerial(std::string port, uint32_t baudrate, 
 	} catch(boost::system::system_error& e)
 	{
 		
-		ROS_ERROR("get_option failed due to %s", e.what());
-        ROS_INFO("Additional info about error is %s", boost::diagnostic_information(e).c_str());
+		RCLCPP_ERROR(rclcpp::get_logger("communication_core"), "get_option failed due to %s", e.what());
+        RCLCPP_INFO(rclcpp::get_logger("communication_core"), "Additional info about error is %s", boost::diagnostic_information(e).c_str());
 		/*
 		boost::system::error_code e_loop;
 		do // Caution: Might cause infinite loop..
@@ -242,7 +242,7 @@ bool io_comm_rx::Comm_IO::initializeSerial(std::string port, uint32_t baudrate, 
 	// Gradually increase the baudrate to the desired value
 	// The desired baudrate can be lower or larger than the
 	// current baudrate; the for loop takes care of both scenarios.
-	ROS_DEBUG("Current baudrate is %u", current_baudrate.value());
+	RCLCPP_DEBUG(rclcpp::get_logger("communication_core"), "Current baudrate is %u", current_baudrate.value());
 	for (uint8_t i = 0; i < sizeof(BAUDRATES)/sizeof(BAUDRATES[0]); i++) 
 	{
 		if (current_baudrate.value() == baudrate_)
@@ -260,8 +260,8 @@ bool io_comm_rx::Comm_IO::initializeSerial(std::string port, uint32_t baudrate, 
 		} catch(boost::system::system_error& e)
 		{
 			
-			ROS_ERROR("set_option failed due to %s", e.what());
-			ROS_INFO("Additional info about error is %s", boost::diagnostic_information(e).c_str());
+			RCLCPP_ERROR(rclcpp::get_logger("communication_core"), "set_option failed due to %s", e.what());
+			RCLCPP_INFO(rclcpp::get_logger("communication_core"), "Additional info about error is %s", boost::diagnostic_information(e).c_str());
 			return false;
 		}
 		usleep(SET_BAUDRATE_SLEEP_);
@@ -273,8 +273,8 @@ bool io_comm_rx::Comm_IO::initializeSerial(std::string port, uint32_t baudrate, 
 		} catch(boost::system::system_error& e)
 		{
 			
-			ROS_ERROR("get_option failed due to %s", e.what());
-			ROS_INFO("Additional info about error is %s", boost::diagnostic_information(e).c_str());
+			RCLCPP_ERROR(rclcpp::get_logger("communication_core"), "get_option failed due to %s", e.what());
+			RCLCPP_INFO(rclcpp::get_logger("communication_core"), "Additional info about error is %s", boost::diagnostic_information(e).c_str());
 			/*
 			boost::system::error_code e_loop;
 			do // Caution: Might cause infinite loop..
@@ -284,26 +284,26 @@ bool io_comm_rx::Comm_IO::initializeSerial(std::string port, uint32_t baudrate, 
 			*/
 			return false;
 		}
-		ROS_DEBUG("Set ASIO baudrate to %u", current_baudrate.value());
+		RCLCPP_DEBUG(rclcpp::get_logger("communication_core"), "Set ASIO baudrate to %u", current_baudrate.value());
 	}
-	ROS_INFO("Set ASIO baudrate to %u, leaving InitializeSerial() method", current_baudrate.value());
+	RCLCPP_INFO(rclcpp::get_logger("communication_core"), "Set ASIO baudrate to %u, leaving InitializeSerial() method", current_baudrate.value());
 	return true;
 }
 
-void io_comm_rx::Comm_IO::setManager(const boost::shared_ptr<Manager>& manager) 
+void io_comm_rx::Comm_IO::setManager(const std::shared_ptr<Manager>& manager)
 {
-	ROS_DEBUG("Called setManager() method");
+	RCLCPP_DEBUG(rclcpp::get_logger("communication_core"), "Called setManager() method");
 	if (manager_) return; 
 	manager_ = manager;
 	manager_->setCallback(boost::bind(&CallbackHandlers::readCallback, &handlers_, _1, _2));
-	ROS_DEBUG("Leaving setManager() method");
+	RCLCPP_DEBUG(rclcpp::get_logger("communication_core"), "Leaving setManager() method");
 }
 
 void io_comm_rx::Comm_IO::resetSerial(std::string port) 
 {
 	serial_port_ = port;
-	boost::shared_ptr<boost::asio::io_service> io_service(new boost::asio::io_service);
-	boost::shared_ptr<boost::asio::serial_port> serial(new boost::asio::serial_port(*io_service));
+	std::shared_ptr<boost::asio::io_service> io_service(new boost::asio::io_service);
+	std::shared_ptr<boost::asio::serial_port> serial(new boost::asio::serial_port(*io_service));
 
 	// Try to open serial port
 	try 
@@ -315,11 +315,11 @@ void io_comm_rx::Comm_IO::resetSerial(std::string port)
                              + serial_port_ + " " + e.what());
 	}
 
-	ROS_INFO("Reset serial port %s", serial_port_.c_str());
+	RCLCPP_INFO(rclcpp::get_logger("communication_core"), "Reset serial port %s", serial_port_.c_str());
 
 	// Sets the I/O worker
 	if (manager_) return;
-	setManager(boost::shared_ptr<Manager>(new AsyncManager<boost::asio::serial_port>(serial, io_service)));
+	setManager(std::shared_ptr<Manager>(new AsyncManager<boost::asio::serial_port>(serial, io_service)));
 	
 	// Set the baudrate
 	serial->set_option(boost::asio::serial_port_base::baud_rate(baudrate_));

@@ -66,9 +66,7 @@
  */
 
 // ROS includes
-#include <ros/console.h>
-// Boost includes
-#include <boost/regex.hpp>
+#include "rclcpp/rclcpp.hpp"
 // ROSaic includes
 #include <septentrio_gnss_driver/communication/communication_core.hpp>
 
@@ -81,8 +79,21 @@ extern bool g_publish_atteuler;
 extern bool g_publish_attcoveuler;
 extern bool g_publish_gpst;
 extern bool g_publish_navsatfix;
-extern ros::Timer g_reconnect_timer_;
-extern boost::shared_ptr<ros::NodeHandle> g_nh;
+extern std::shared_ptr<rclcpp::Publisher<septentrio_gnss_driver_msgs::msg::Gpgga>> g_gpgga_publisher;
+extern std::shared_ptr<rclcpp::Publisher<septentrio_gnss_driver_msgs::msg::Gprmc>> g_gprmc_publisher;
+extern std::shared_ptr<rclcpp::Publisher<septentrio_gnss_driver_msgs::msg::Gpgsa>> g_gpgsa_publisher;
+extern std::shared_ptr<rclcpp::Publisher<septentrio_gnss_driver_msgs::msg::Gpgsv>> g_gpgsv_publisher;
+extern std::shared_ptr<rclcpp::Publisher<septentrio_gnss_driver_msgs::msg::PVTCartesian>> g_pvtcartesian_publisher;
+extern std::shared_ptr<rclcpp::Publisher<septentrio_gnss_driver_msgs::msg::PVTGeodetic>> g_pvtgeodetic_publisher;
+extern std::shared_ptr<rclcpp::Publisher<septentrio_gnss_driver_msgs::msg::PosCovCartesian>> g_poscovcartesian_publisher;
+extern std::shared_ptr<rclcpp::Publisher<septentrio_gnss_driver_msgs::msg::PosCovGeodetic>> g_poscovgeodetic_publisher;
+extern std::shared_ptr<rclcpp::Publisher<septentrio_gnss_driver_msgs::msg::AttEuler>> g_atteuler_publisher;
+extern std::shared_ptr<rclcpp::Publisher<septentrio_gnss_driver_msgs::msg::AttCovEuler>> g_attcoveuler_publisher;
+extern std::shared_ptr<rclcpp::Publisher<sensor_msgs::msg::TimeReference>> g_gpst_publisher;
+extern std::shared_ptr<rclcpp::Publisher<sensor_msgs::msg::NavSatFix>> g_navsatfix_publisher;
+extern std::shared_ptr<rclcpp::Publisher<gps_msgs::msg::GPSFix>> g_gpsfix_publisher;
+extern std::shared_ptr<rclcpp::Publisher<geometry_msgs::msg::PoseWithCovarianceStamped>> g_posewithcovariancestamped_publisher;
+extern std::shared_ptr<rclcpp::Publisher<diagnostic_msgs::msg::DiagnosticArray>> g_diagnosticarray_publisher;
 extern const uint32_t g_ROS_QUEUE_SIZE;
 
 /**
@@ -140,9 +151,7 @@ namespace rosaic_node
 	 * @return True if found, false if not found
 	 */
 	template <typename U>
-	bool getROSInt(const std::string& key, U &u) {
-		int param;
-		if (!g_nh->getParam(key, param)) return false;
+	bool getROSInt(const std::string& key, U &u, int param) {
 		U min = std::numeric_limits<U>::lowest();
 		U max = std::numeric_limits<U>::max();
 		try
@@ -153,7 +162,7 @@ namespace rosaic_node
 		{
 			std::ostringstream ss;
 			ss << e.what();
-			ROS_INFO("%s", ss.str().c_str());
+			RCLCPP_INFO(rclcpp::get_logger("rosaic_node"), "%s", ss.str().c_str());
 		}
 		u = (U) param;
 		return true;
@@ -167,9 +176,9 @@ namespace rosaic_node
 	 * @return True if found, false if not found
 	 */
 	template <typename U>
-	void getROSInt(const std::string& key, U &u, U default_val) 
+	void getROSInt(const std::string& key, U &u, U default_val, int param)
 	{
-		if(!getROSInt(key, u))
+		if(!getROSInt(key, u, param))
 			u = default_val;
 	}
 	
@@ -177,7 +186,7 @@ namespace rosaic_node
 	 * @class ROSaicNode
 	 * @brief This class represents the ROsaic node, to be extended..
 	 */
-	class ROSaicNode
+	class ROSaicNode : public rclcpp::Node
 	{
 		public:
 		
@@ -216,7 +225,7 @@ namespace rosaic_node
 			/**
 			 * @brief Attempts to (re)connect every reconnect_delay_s_ seconds
 			 */
-			void reconnect(const ros::TimerEvent& event);
+			void reconnect();
 			
 			/**
 			 * @brief Calls the reconnect() method
@@ -277,7 +286,7 @@ namespace rosaic_node
 			//! Rx serial port, e.g. USB2, on which Rx receives the corrections (can't be the same as main connection unless localhost concept is used)
 			std::string rx_input_corrections_serial_;
 			//! Our ROS timer governing the reconnection
-			ros::Timer reconnect_timer_;
+			rclcpp::TimerBase::SharedPtr reconnect_timer_;
 			//! Whether (and at which rate) or not to send GGA to the NTRIP caster
 			std::string send_gga_;
 			//! Whether or not to publish the GGA message
@@ -302,10 +311,10 @@ namespace rosaic_node
 			bool publish_attcoveuler_;
 			//! Since the configureRx() method should only be called once the connection 
 			//! was established, we need the threads to communicate this to each other. Associated mutex..
-			boost::mutex connection_mutex_;
+			std::mutex connection_mutex_;
 			//! Since the configureRx() method should only be called once the connection 
 			//! was established, we need the threads to communicate this to each other. Associated condition variable..
-			boost::condition_variable connection_condition_;
+			std::condition_variable connection_condition_;
 			//! Host name of TCP server
 			std::string tcp_host_;
 			//! TCP port number

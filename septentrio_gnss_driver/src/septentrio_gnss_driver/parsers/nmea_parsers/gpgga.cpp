@@ -29,6 +29,8 @@
 // *****************************************************************************
 
 #include <septentrio_gnss_driver/parsers/nmea_parsers/gpgga.hpp>
+#include <sstream>
+#include "rclcpp/rclcpp.hpp"
 
 /**
  * @file gpgga.cpp
@@ -48,9 +50,9 @@ const std::string GpggaParser::getMessageID() const
  * Note: This method is called from within the read() method of the RxMessage class by including the checksum part in
  * the argument "sentence" here, though the checksum is never parsed: It would be sentence.get_body()[15] if anybody ever needs it.
  */
-septentrio_gnss_driver::GpggaPtr GpggaParser::parseASCII(const NMEASentence& sentence) noexcept(false)
+septentrio_gnss_driver_msgs::msg::Gpgga::SharedPtr GpggaParser::parseASCII(const NMEASentence& sentence) noexcept(false)
 {
-	//ROS_DEBUG("Just testing that first entry is indeed what we expect it to be: %s", sentence.get_body()[0].c_str());
+	RCLCPP_DEBUG(rclcpp::get_logger("gpgga"), "Just testing that first entry is indeed what we expect it to be: %s", sentence.get_body()[0].c_str());
 	// Check the length first, which should be 16 elements.
 	const size_t LEN = 16;
 	if (sentence.get_body().size() > LEN || sentence.get_body().size() < LEN)
@@ -60,7 +62,7 @@ septentrio_gnss_driver::GpggaPtr GpggaParser::parseASCII(const NMEASentence& sen
 		throw ParseException(error.str());
 	}
 
-	septentrio_gnss_driver::GpggaPtr msg = boost::make_shared<septentrio_gnss_driver::Gpgga>();
+	septentrio_gnss_driver_msgs::msg::Gpgga::SharedPtr msg = std::make_shared<septentrio_gnss_driver_msgs::msg::Gpgga>();
 	msg->header.frame_id = g_frame_id;
 
 	msg->message_id = sentence.get_body()[0];
@@ -76,22 +78,18 @@ septentrio_gnss_driver::GpggaPtr GpggaParser::parseASCII(const NMEASentence& sen
 		{
 			if(g_use_gnss_time)
 			{
-				//ROS_DEBUG("utc_double is %f", (float) utc_double);
+				RCLCPP_DEBUG(rclcpp::get_logger("gpgga"), "utc_double is %f", (float) utc_double);
 				msg->utc_seconds = parsing_utilities::convertUTCDoubleToSeconds(utc_double);
 				
 				// The Header's Unix Epoch time stamp
 				time_t unix_time_seconds = parsing_utilities::convertUTCtoUnix(utc_double);
 				// The following assumes that there are two digits after the decimal point in utc_double, i.e. in the NMEA UTC time.
 				uint32_t unix_time_nanoseconds = (static_cast<uint32_t>(utc_double*100)%100)*10000; 
-				msg->header.stamp.sec = unix_time_seconds;
-				msg->header.stamp.nsec = unix_time_nanoseconds;
+				msg->header.stamp = rclcpp::Time(unix_time_seconds, unix_time_nanoseconds);
 			}
 			else
 			{
-				ros::Time time_obj;
-				time_obj = ros::Time::now();
-				msg->header.stamp.sec = time_obj.sec;
-				msg->header.stamp.nsec = time_obj.nsec;
+				msg->header.stamp = rclcpp::Clock().now();
 			}
 		}
 		else
@@ -114,7 +112,7 @@ septentrio_gnss_driver::GpggaPtr GpggaParser::parseASCII(const NMEASentence& sen
 	msg->lon_dir = sentence.get_body()[5];
 	valid = valid && parsing_utilities::parseUInt32(sentence.get_body()[6], msg->gps_qual);
 	valid = valid && parsing_utilities::parseUInt32(sentence.get_body()[7], msg->num_sats);
-	//ROS_INFO("Valid is %s so far with number of satellites in use being %s", valid ? "true" : "false", sentence.get_body()[7].c_str());
+	RCLCPP_INFO(rclcpp::get_logger("gpgga"), "Valid is %s so far with number of satellites in use being %s", valid ? "true" : "false", sentence.get_body()[7].c_str());
 
 	valid = valid && parsing_utilities::parseFloat(sentence.get_body()[8], msg->hdop);
 	valid = valid && parsing_utilities::parseFloat(sentence.get_body()[9], msg->alt);

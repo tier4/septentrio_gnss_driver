@@ -33,6 +33,7 @@
 #include <septentrio_gnss_driver/parsers/parsing_utilities.hpp>
 // C++ library includes
 #include <limits>
+#include "rclcpp/rclcpp.hpp"
 
 /**
  * @file parsing_utilities.cpp
@@ -286,14 +287,14 @@ namespace parsing_utilities
 		// Inverse of gmtime, the latter converts time_t (Unix time) to tm (UTC time)
 		time_t date = timegm(timeinfo); 
 
-		//ROS_DEBUG("Since 1970/01/01 %jd seconds have passed.\n", (intmax_t) date);
+		RCLCPP_DEBUG(rclcpp::get_logger("parsing_utilities"), "Since 1970/01/01 %jd seconds have passed.\n", (intmax_t) date);
 		return date;
 	}
 	
 	//! The rotational sequence convention we adopt here (and Septentrio receivers' pitch, roll, yaw definition 
 	//! too) is the yaw-pitch-roll sequence, i.e. the 3-2-1 sequence: The body first does yaw around the Z=Down-axis, 
 	//! then pitches around the new Y=East=right-axis and finally rolls around the new X=North=forward-axis.
-	geometry_msgs::Quaternion convertEulerToQuaternion(double yaw, double pitch, double roll) 
+	geometry_msgs::msg::Quaternion convertEulerToQuaternion(double yaw, double pitch, double roll)
 	{
 		// Abbreviations for the angular functions
 		double cy = cos(yaw * 0.5);
@@ -303,7 +304,7 @@ namespace parsing_utilities
 		double cr = cos(roll * 0.5);
 		double sr = sin(roll * 0.5);
 
-		geometry_msgs::Quaternion q;
+		geometry_msgs::msg::Quaternion q;
 		q.w = cr * cp * cy + sr * sp * sy;
 		q.x = sr * cp * cy - cr * sp * sy;
 		q.y = cr * sp * cy + sr * cp * sy;

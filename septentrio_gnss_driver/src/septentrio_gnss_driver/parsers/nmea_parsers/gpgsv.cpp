@@ -29,6 +29,8 @@
 // *****************************************************************************
 
 #include <septentrio_gnss_driver/parsers/nmea_parsers/gpgsv.hpp>
+#include <sstream>
+#include "rclcpp/rclcpp.hpp"
 
 /**
  * @file gpgsv.cpp
@@ -49,7 +51,7 @@ const std::string GpgsvParser::getMessageID() const
  * the argument "sentence" here, though the checksum is never parsed: E.g. for message with 4 Svs it would be 
  * sentence.get_body()[20] if anybody ever needs it.
  */
-septentrio_gnss_driver::GpgsvPtr GpgsvParser::parseASCII(const NMEASentence& sentence) noexcept(false)
+septentrio_gnss_driver_msgs::msg::Gpgsv::SharedPtr GpgsvParser::parseASCII(const NMEASentence& sentence) noexcept(false)
 {
 	
 	
@@ -62,7 +64,7 @@ septentrio_gnss_driver::GpgsvPtr GpgsvParser::parseASCII(const NMEASentence& sen
           << ". The actual length is " << sentence.get_body().size();
 		throw ParseException(error.str());
 	}
-	septentrio_gnss_driver::GpgsvPtr msg = boost::make_shared<septentrio_gnss_driver::Gpgsv>();
+	septentrio_gnss_driver_msgs::msg::Gpgsv::SharedPtr msg = std::make_shared<septentrio_gnss_driver_msgs::msg::Gpgsv>();
 	msg->header.frame_id = g_frame_id;
 	msg->message_id = sentence.get_body()[0];
 	if (!parsing_utilities::parseUInt8(sentence.get_body()[1], msg->n_msgs))
@@ -117,7 +119,7 @@ septentrio_gnss_driver::GpgsvPtr GpgsvParser::parseASCII(const NMEASentence& sen
 		// blank fields for 1 satellite.
 		expected_length += 4;
 	}
-	//ROS_DEBUG("number of sats is %u but nsats in sentence if msg_number = max is %u and msg->msg_number == msg->n_msgs is %s and nsats in sentence is %li", msg->n_satellites, msg->n_satellites % static_cast<uint8_t>(4), msg->msg_number == msg->n_msgs ? "true" : "false", n_sats_in_sentence);
+	RCLCPP_DEBUG(rclcpp::get_logger("gpgsv"), "number of sats is %u but nsats in sentence if msg_number = max is %u and msg->msg_number == msg->n_msgs is %s and nsats in sentence is %li", msg->n_satellites, msg->n_satellites % static_cast<uint8_t>(4), msg->msg_number == msg->n_msgs ? "true" : "false", n_sats_in_sentence);
 	if (sentence.get_body().size() != expected_length && sentence.get_body().size() != expected_length - 1)
 	{
 		std::stringstream ss;

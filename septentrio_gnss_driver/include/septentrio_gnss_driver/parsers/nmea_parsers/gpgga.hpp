@@ -59,12 +59,12 @@
 #ifndef GPGGA_HPP
 #define GPGGA_HPP
 
+#include <memory>
 // ROSaic includes
 #include <septentrio_gnss_driver/parsers/parser_base_class.hpp>
 #include <septentrio_gnss_driver/parsers/string_utilities.h>
 // Boost and ROS includes
-#include <septentrio_gnss_driver/Gpgga.h>
-#include <boost/make_shared.hpp>
+#include "septentrio_gnss_driver_msgs/msg/gpgga.hpp"
 
 extern std::string g_frame_id;
 extern bool g_use_gnss_time;
@@ -80,14 +80,14 @@ extern bool g_use_gnss_time;
  * @brief Derived class for parsing GGA messages
  * @date 13/08/20
  */
-class GpggaParser : public BaseParser<septentrio_gnss_driver::GpggaPtr>
+class GpggaParser : public BaseParser<septentrio_gnss_driver_msgs::msg::Gpgga::SharedPtr>
 {
 	public:
 		
 		/**
 		 * @brief Constructor of the class GpggaParser
 		 */
-		GpggaParser(): BaseParser<septentrio_gnss_driver::GpggaPtr>(), was_last_gpgga_valid_(false) {}
+		GpggaParser(): BaseParser<septentrio_gnss_driver_msgs::msg::Gpgga::SharedPtr>(), was_last_gpgga_valid_(false) {}
 
 		/**
 		 * @brief Returns the ASCII message ID, here "$GPGGA"
@@ -100,7 +100,7 @@ class GpggaParser : public BaseParser<septentrio_gnss_driver::GpggaPtr>
 		 * @param[in] sentence The GGA message to be parsed
 		 * @return A ROS message pointer of ROS type septentrio_gnss_driver::GpggaPtr
 		 */
-		septentrio_gnss_driver::GpggaPtr parseASCII(const NMEASentence& sentence) noexcept(false) override;
+		septentrio_gnss_driver_msgs::msg::Gpgga::SharedPtr parseASCII(const NMEASentence& sentence) noexcept(false) override;
 
 		/**
 		 * @brief Tells us whether the last GGA message was valid or not 

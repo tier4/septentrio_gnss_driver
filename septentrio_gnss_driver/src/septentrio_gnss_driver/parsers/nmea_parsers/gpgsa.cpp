@@ -29,6 +29,7 @@
 // *****************************************************************************
 
 #include <septentrio_gnss_driver/parsers/nmea_parsers/gpgsa.hpp>
+#include <sstream>
 
 /**
  * @file gpgsa.cpp
@@ -48,7 +49,7 @@ const std::string GpgsaParser::getMessageID() const
  * Note: This method is called from within the read() method of the RxMessage class by including the checksum part in
  * the argument "sentence" here, though the checksum is never parsed: It would be sentence.get_body()[18] if anybody ever needs it.
  */
-septentrio_gnss_driver::GpgsaPtr GpgsaParser::parseASCII(const NMEASentence& sentence) noexcept(false)
+septentrio_gnss_driver_msgs::msg::Gpgsa::SharedPtr GpgsaParser::parseASCII(const NMEASentence& sentence) noexcept(false)
 {
 	
 	// Checking the length first, it should be 19 elements
@@ -61,7 +62,7 @@ septentrio_gnss_driver::GpgsaPtr GpgsaParser::parseASCII(const NMEASentence& sen
 		throw ParseException(error.str());
 	}
 
-	septentrio_gnss_driver::GpgsaPtr msg = boost::make_shared<septentrio_gnss_driver::Gpgsa>();
+	septentrio_gnss_driver_msgs::msg::Gpgsa::SharedPtr msg = std::make_shared<septentrio_gnss_driver_msgs::msg::Gpgsa>();
 	msg->header.frame_id = g_frame_id;
 	msg->message_id = sentence.get_body()[0];
 	msg->auto_manual_mode = sentence.get_body()[1];

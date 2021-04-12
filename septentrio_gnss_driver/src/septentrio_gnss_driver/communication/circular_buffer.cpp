@@ -29,6 +29,9 @@
 // *****************************************************************************
 
 #include <septentrio_gnss_driver/communication/circular_buffer.hpp>
+#include <cstring>
+// ROS includes
+#include "rclcpp/rclcpp.hpp"
 
 /**
  * @file circular_buffer.cpp
@@ -56,14 +59,14 @@ std::size_t CircularBuffer::write(const uint8_t *data, std::size_t bytes)
 	std::size_t bytes_to_write = std::min(bytes, capacity - size_);
 	if (bytes_to_write != bytes)
 	{
-		ROS_ERROR("You are trying to overwrite parts of the circular buffer that have not yet been read!");
+		RCLCPP_ERROR(rclcpp::get_logger("circular_buffer"), "You are trying to overwrite parts of the circular buffer that have not yet been read!");
 	}
 	
 	// Writes in a single step
 	if (bytes_to_write <= capacity - head_)
 	{
 		
-		memcpy(data_ + head_, data, bytes_to_write);
+		std::memcpy(data_ + head_, data, bytes_to_write);
 		head_ += bytes_to_write;
 		if (head_ == capacity) head_ = 0;
 	}
@@ -71,9 +74,9 @@ std::size_t CircularBuffer::write(const uint8_t *data, std::size_t bytes)
 	else
 	{
 		std::size_t size_1 = capacity - head_;
-		memcpy(data_ + head_, data, size_1);
+		std::memcpy(data_ + head_, data, size_1);
 		std::size_t size_2 = bytes_to_write - size_1;
-		memcpy(data_, data + size_1, size_2);
+		std::memcpy(data_, data + size_1, size_2);
 		head_ = size_2; // Hence setting head_ = 0 three lines above was not necessary.
 	}
 	size_ += bytes_to_write;
@@ -87,14 +90,14 @@ std::size_t CircularBuffer::read(uint8_t *data, std::size_t bytes)
 	std::size_t bytes_to_read = std::min(bytes, size_);
 	if (bytes_to_read != bytes)
 	{
-		ROS_ERROR("You are trying to read parts of the circular buffer that have not yet been written!");
+		RCLCPP_ERROR(rclcpp::get_logger("circular_buffer"), "You are trying to read parts of the circular buffer that have not yet been written!");
 	}
 
 	// Read in a single step
 	if (bytes_to_read <= capacity - tail_) 	// Note that it is not size_ - tail_:
 											// If write() hasn't written something into all of capacity yet (first round of writing), we would still read those unknown bytes..
 	{
-		memcpy(data, data_ + tail_, bytes_to_read);
+		std::memcpy(data, data_ + tail_, bytes_to_read);
 		tail_ += bytes_to_read;
 		if (tail_ == capacity) tail_ = 0; // Same here?
 	}
@@ -103,9 +106,9 @@ std::size_t CircularBuffer::read(uint8_t *data, std::size_t bytes)
 	else
 	{
 		std::size_t size_1 = capacity - tail_;
-		memcpy(data, data_ + tail_, size_1);
+		std::memcpy(data, data_ + tail_, size_1);
 		std::size_t size_2 = bytes_to_read - size_1;
-		memcpy(data + size_1, data_, size_2);
+		std::memcpy(data + size_1, data_, size_2);
 		tail_ = size_2;
 	}
 	

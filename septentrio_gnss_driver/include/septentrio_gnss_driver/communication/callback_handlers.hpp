@@ -59,19 +59,18 @@
 #ifndef CALLBACK_HANDLERS_HPP
 #define CALLBACK_HANDLERS_HPP
 
+#include <mutex>
+#include <functional>
 // Boost includes
 #include <boost/foreach.hpp> 
 // In C++, writing a loop that iterates over a sequence is tedious --> BOOST_FOREACH(char ch, "Hello World")
-#include <boost/function.hpp>
 // E.g. boost::function<int(const char*)> f = std::atoi;defines a pointer f that can point to functions that 
 // expect a parameter of type const char* and return a value of type int
 // Generally, any place in which a function pointer would be used to defer a call or make a callback, 
 // Boost.Function can be used instead to allow the user greater flexibility in the implementation of the target.
-#include <boost/thread.hpp>
 // Boost's thread enables the use of multiple threads of execution with shared data in portable C++ code. 
 // It provides classes and functions for managing the threads themselves, along with others for synchronizing 
 // data between the threads or providing separate copies of data specific to individual threads. 
-#include <boost/thread/condition.hpp>
 #include <boost/tokenizer.hpp>
 // The tokenizer class provides a container view of a series of tokens contained in a sequence, e.g. if you 
 // are not interested in non-words...
@@ -85,7 +84,6 @@
 #include <boost/bind.hpp>
 #include <boost/format.hpp>
 #include <boost/asio/serial_port.hpp>
-#include <boost/thread/mutex.hpp>
 
 // ROSaic and C++ includes
 #include <septentrio_gnss_driver/communication/rx_message.hpp>
@@ -120,11 +118,11 @@ extern bool g_publish_gpst;
 extern bool g_publish_pose;
 extern bool g_publish_diagnostics;
 extern bool g_response_received;
-extern boost::mutex g_response_mutex;
-extern boost::condition_variable g_response_condition;
+extern std::mutex g_response_mutex;
+extern std::condition_variable g_response_condition;
 extern bool g_cd_received;
-extern boost::mutex g_cd_mutex;
-extern boost::condition_variable g_cd_condition;
+extern std::mutex g_cd_mutex;
+extern std::condition_variable g_cd_condition;
 extern uint32_t g_cd_count;
 extern std::string g_rx_tcp_port;
 
@@ -141,13 +139,13 @@ namespace io_comm_rx
 	 
 			bool Wait(const boost::posix_time::time_duration& timeout) 
 			{
-				boost::mutex::scoped_lock lock(mutex_);
-				return condition_.timed_wait(lock, timeout);
+				std::unique_lock<std::mutex> lock(mutex_);
+				return condition_.wait_for(lock, std::chrono::seconds(timeout.seconds()), [this] { return true; });
 			}
 	 
 		protected:
-			boost::mutex mutex_; 
-			boost::condition_variable condition_; 
+			std::mutex mutex_;
+			std::condition_variable condition_;
 	};
 	 
 	/**
@@ -163,7 +161,7 @@ namespace io_comm_rx
 			
 			void handle(RxMessage& rx_message, std::string message_key) 
 			{
-				boost::mutex::scoped_lock lock(mutex_);
+				std::unique_lock<std::mutex> lock(mutex_);
 				try 
 				{
 					if (!rx_message.read(message_key)) 
@@ -200,7 +198,7 @@ namespace io_comm_rx
 		public:
 			
 			//! Key is std::string and represents the ROS message key, value is boost::shared_ptr<CallbackHandler> 
-			typedef std::multimap<std::string, boost::shared_ptr<AbstractCallbackHandler>> CallbackMap;
+			typedef std::multimap<std::string, std::shared_ptr<AbstractCallbackHandler>> CallbackMap;
 			
 			CallbackHandlers() = default;
 			
@@ -216,12 +214,12 @@ namespace io_comm_rx
 			template <typename T> 
 			CallbackMap insert(std::string message_key)
 			{
-				boost::mutex::scoped_lock lock(callback_mutex_);
+				std::unique_lock<std::mutex> lock(callback_mutex_);
 				// Adding typename might be cleaner, but is optional again
 				CallbackHandler<T>* handler = new CallbackHandler<T>(); 
-				callbackmap_.insert(std::make_pair(message_key, boost::shared_ptr<AbstractCallbackHandler>(handler)));
+				callbackmap_.insert(std::make_pair(message_key, std::shared_ptr<AbstractCallbackHandler>(handler)));
 				CallbackMap::key_type key = message_key;
-				ROS_DEBUG("Key %s successfully inserted into multimap: %s", message_key.c_str(),
+				RCLCPP_DEBUG(rclcpp::get_logger("callback_handler"), "Key %s successfully inserted into multimap: %s", message_key.c_str(),
 					((unsigned int) callbackmap_.count(key)) ? "true" : "false");
 				return callbackmap_;
 			}
@@ -251,7 +249,7 @@ namespace io_comm_rx
 			//! it available throughout the code unit. The mutex constructor list contains "mutex 
 			//! (const mutex&) = delete", hence construct-by-copying a mutex is explicitly prohibited.
 			//! The get_handlers() method of the Comm_IO class hence forces us to make this mutex static.
-			static boost::mutex callback_mutex_; 
+			static std::mutex callback_mutex_;
 			
 			//! Determines which of the SBF blocks necessary for the gps_common::GPSFix ROS message arrives last 
 			//! and thus launches its construction

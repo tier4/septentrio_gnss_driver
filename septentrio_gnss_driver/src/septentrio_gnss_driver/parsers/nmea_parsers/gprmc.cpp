@@ -29,6 +29,8 @@
 // *****************************************************************************
 
 #include <septentrio_gnss_driver/parsers/nmea_parsers/gprmc.hpp>
+#include <sstream>
+#include "rclcpp/rclcpp.hpp"
 
 /**
  * @file gprmc.cpp
@@ -51,7 +53,7 @@ const std::string GprmcParser::getMessageID() const
  * If it is void, the GPS could not make a good positioning and you should thus ignore it. This usually occurs when the GPS is still 
  * searching for satellites. WasLastGPRMCValid() will return false in this case.
  */
-septentrio_gnss_driver::GprmcPtr GprmcParser::parseASCII(const NMEASentence& sentence) noexcept(false)
+septentrio_gnss_driver_msgs::msg::Gprmc::SharedPtr GprmcParser::parseASCII(const NMEASentence& sentence) noexcept(false)
 {
 	
 	// Checking the length first, it should be between 13 and 14 elements
@@ -67,7 +69,7 @@ septentrio_gnss_driver::GprmcPtr GprmcParser::parseASCII(const NMEASentence& sen
 		throw ParseException(error.str());
 	}
 
-	septentrio_gnss_driver::GprmcPtr msg = boost::make_shared<septentrio_gnss_driver::Gprmc>();
+	septentrio_gnss_driver_msgs::msg::Gprmc::SharedPtr msg = std::make_shared<septentrio_gnss_driver_msgs::msg::Gprmc>();
 	
 	msg->header.frame_id = g_frame_id;
 	
@@ -89,15 +91,11 @@ septentrio_gnss_driver::GprmcPtr GprmcParser::parseASCII(const NMEASentence& sen
 				time_t unix_time_seconds = parsing_utilities::convertUTCtoUnix(utc_double);
 				// The following assumes that there are two digits after the decimal point in utc_double, i.e. in the NMEA UTC time.
 				uint32_t unix_time_nanoseconds = (static_cast<uint32_t>(utc_double*100)%100)*10000; 
-				msg->header.stamp.sec = unix_time_seconds;
-				msg->header.stamp.nsec = unix_time_nanoseconds;
+				msg->header.stamp = rclcpp::Time(unix_time_seconds, unix_time_nanoseconds);
 			}
 			else
 			{
-				ros::Time time_obj;
-				time_obj = ros::Time::now();
-				msg->header.stamp.sec = time_obj.sec;
-				msg->header.stamp.nsec = time_obj.nsec;
+				msg->header.stamp = rclcpp::Clock().now();
 			}
 		}
 		else

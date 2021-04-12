@@ -71,7 +71,7 @@ std::pair<std::string, uint32_t> diagnosticarray_pairs[] =
 
 namespace io_comm_rx
 {
-	boost::mutex CallbackHandlers::callback_mutex_;
+	std::mutex CallbackHandlers::callback_mutex_;
 	
 	CallbackHandlers::GPSFixMap CallbackHandlers::gpsfix_map(gpsfix_pairs, gpsfix_pairs + 8);
 	CallbackHandlers::NavSatFixMap CallbackHandlers::navsatfix_map(navsatfix_pairs, navsatfix_pairs + 2);
@@ -90,7 +90,7 @@ namespace io_comm_rx
 	void CallbackHandlers::handle(RxMessage& rx_message)
 	{
 		// Find the ROS message callback handler for the equivalent Rx message (SBF/NMEA) at hand & call it
-		boost::mutex::scoped_lock lock(callback_mutex_);
+		std::unique_lock<std::mutex> lock(callback_mutex_);
 		CallbackMap::key_type key = rx_message.messageID();
 		std::string ID_temp = rx_message.messageID();
 		if (!(ID_temp == "4013" || ID_temp == "4027" || ID_temp == "4001"|| ID_temp == "5908" || 
@@ -278,11 +278,11 @@ namespace io_comm_rx
 				std::size_t sbf_block_length;
 				std::string ID_temp = rx_message.messageID();
 				sbf_block_length = static_cast<std::size_t>(rx_message.getBlockLength()); 
-				ROS_DEBUG("ROSaic reading SBF block %s made up of %li bytes...", ID_temp.c_str(), sbf_block_length); 
+				RCLCPP_DEBUG(rclcpp::get_logger("callback_handlers"), "ROSaic reading SBF block %s made up of %li bytes...", ID_temp.c_str(), sbf_block_length);
 				// If full message did not yet arrive, throw an error message.
 				if (sbf_block_length > rx_message.getCount())
 				{
-					ROS_DEBUG("Not a valid SBF block, parts of the SBF block are yet to be received. Ignore..");
+					RCLCPP_DEBUG(rclcpp::get_logger("callback_handlers"), "Not a valid SBF block, parts of the SBF block are yet to be received. Ignore..");
 					throw (static_cast<std::size_t>(rx_message.getPosBuffer() - data));
 				}
 				if (g_publish_gpsfix == true && (ID_temp == "4013" || ID_temp == "4027" ||
@@ -343,22 +343,22 @@ namespace io_comm_rx
 				// Syntax: new_string_name (const char* s, size_t n); size_t is either 2 or 8 bytes, depending on your system
 				std::string block_in_string(reinterpret_cast<const char*>(rx_message.getPosBuffer()), nmea_size);
 				tokenizer tokens(block_in_string, sep);
-				ROS_DEBUG("The NMEA message contains %li bytes and is ready to be parsed. It reads: %s", nmea_size, (*tokens.begin()).c_str());
+				RCLCPP_DEBUG(rclcpp::get_logger("callback_handlers"), "The NMEA message contains %li bytes and is ready to be parsed. It reads: %s", nmea_size, (*tokens.begin()).c_str());
 			}
 			if (rx_message.isResponse()) // If the response is not sent at once, only first part is ROS_DEBUG-printed
 			{
 				std::size_t response_size = rx_message.messageSize();
 				std::string block_in_string(reinterpret_cast<const char*>(rx_message.getPosBuffer()), response_size);
-				ROS_DEBUG("The Rx's response contains %li bytes and reads:\n %s", response_size, block_in_string.c_str());
+				RCLCPP_DEBUG(rclcpp::get_logger("callback_handlers"), "The Rx's response contains %li bytes and reads:\n %s", response_size, block_in_string.c_str());
 				{
-					boost::mutex::scoped_lock lock(g_response_mutex);
+					std::unique_lock<std::mutex> lock(g_response_mutex);
 					g_response_received = true;
 					lock.unlock();
 					g_response_condition.notify_one();
 				}
 				if (rx_message.isErrorMessage())
 				{
-					ROS_ERROR("Invalid command just sent to the Rx!");
+					RCLCPP_ERROR(rclcpp::get_logger("callback_handlers"), "Invalid command just sent to the Rx!");
 				}
 				continue;
 			}
@@ -366,11 +366,11 @@ namespace io_comm_rx
 			{
 				std::string cd(reinterpret_cast<const char*>(rx_message.getPosBuffer()), 4);
 				g_rx_tcp_port = cd;
-				ROS_INFO_COND(g_cd_count == 0, "The connection descriptor for the TCP connection is %s", cd.c_str());
+				RCLCPP_INFO_EXPRESSION(rclcpp::get_logger("callback_handler"), g_cd_count == 0, "The connection descriptor for the TCP connection is %s", cd.c_str());
 				if (g_cd_count < 3) ++g_cd_count;
 				if (g_cd_count == 2)
 				{
-					boost::mutex::scoped_lock lock(g_cd_mutex);
+					std::unique_lock<std::mutex> lock(g_cd_mutex);
 					g_cd_received = true;
 					lock.unlock();
 					g_cd_condition.notify_one();
@@ -383,7 +383,7 @@ namespace io_comm_rx
 			}
 			catch (std::runtime_error& e) 
 			{
-				ROS_DEBUG("Incomplete message: %s", e.what());
+				RCLCPP_DEBUG(rclcpp::get_logger("callback_handlers"), "Incomplete message: %s", e.what());
 				throw (static_cast<std::size_t>(rx_message.getPosBuffer() - data));
 			}
 		}

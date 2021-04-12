@@ -117,12 +117,13 @@
 #include <boost/format.hpp>
 #include <boost/math/constants/constants.hpp>
 // ROS includes
-#include <sensor_msgs/NavSatFix.h>
-#include <sensor_msgs/TimeReference.h>
-#include <geometry_msgs/PoseWithCovarianceStamped.h>
-#include <diagnostic_msgs/DiagnosticArray.h>
-#include <diagnostic_msgs/DiagnosticStatus.h>
-#include <gps_common/GPSFix.h>
+#include "rclcpp/rclcpp.hpp"
+#include "sensor_msgs/msg/nav_sat_fix.hpp"
+#include "sensor_msgs/msg/time_reference.hpp"
+#include "geometry_msgs/msg/pose_with_covariance_stamped.hpp"
+#include "diagnostic_msgs/msg/diagnostic_array.hpp"
+#include "diagnostic_msgs/msg/diagnostic_status.hpp"
+#include "gps_msgs/msg/gps_fix.hpp"
 // ROSaic includes
 #include <septentrio_gnss_driver/parsers/nmea_parsers/gpgga.hpp>
 #include <septentrio_gnss_driver/parsers/nmea_parsers/gprmc.hpp>
@@ -130,12 +131,12 @@
 #include <septentrio_gnss_driver/parsers/nmea_parsers/gpgsv.hpp>
 #include <septentrio_gnss_driver/crc/crc.h> 
 #include <septentrio_gnss_driver/parsers/string_utilities.h>
-#include <septentrio_gnss_driver/PVTCartesian.h>
-#include <septentrio_gnss_driver/PVTGeodetic.h>
-#include <septentrio_gnss_driver/PosCovCartesian.h>
-#include <septentrio_gnss_driver/PosCovGeodetic.h>
-#include <septentrio_gnss_driver/AttEuler.h>
-#include <septentrio_gnss_driver/AttCovEuler.h>
+#include "septentrio_gnss_driver_msgs/msg/pvt_cartesian.hpp"
+#include "septentrio_gnss_driver_msgs/msg/pvt_geodetic.hpp"
+#include "septentrio_gnss_driver_msgs/msg/pos_cov_cartesian.hpp"
+#include "septentrio_gnss_driver_msgs/msg/pos_cov_geodetic.hpp"
+#include "septentrio_gnss_driver_msgs/msg/att_euler.hpp"
+#include "septentrio_gnss_driver_msgs/msg/att_cov_euler.hpp"
 
 #ifndef RX_MESSAGE_HPP
 #define RX_MESSAGE_HPP
@@ -166,9 +167,23 @@ extern bool g_attcoveuler_has_arrived_gpsfix;
 extern bool g_attcoveuler_has_arrived_pose;
 extern bool g_receiverstatus_has_arrived_diagnostics;
 extern bool g_qualityind_has_arrived_diagnostics;
-extern boost::shared_ptr<ros::NodeHandle> g_nh;
+extern std::shared_ptr<rclcpp::Publisher<septentrio_gnss_driver_msgs::msg::Gpgga>> g_gpgga_publisher;
+extern std::shared_ptr<rclcpp::Publisher<septentrio_gnss_driver_msgs::msg::Gprmc>> g_gprmc_publisher;
+extern std::shared_ptr<rclcpp::Publisher<septentrio_gnss_driver_msgs::msg::Gpgsa>> g_gpgsa_publisher;
+extern std::shared_ptr<rclcpp::Publisher<septentrio_gnss_driver_msgs::msg::Gpgsv>> g_gpgsv_publisher;
+extern std::shared_ptr<rclcpp::Publisher<septentrio_gnss_driver_msgs::msg::PVTCartesian>> g_pvtcartesian_publisher;
+extern std::shared_ptr<rclcpp::Publisher<septentrio_gnss_driver_msgs::msg::PVTGeodetic>> g_pvtgeodetic_publisher;
+extern std::shared_ptr<rclcpp::Publisher<septentrio_gnss_driver_msgs::msg::PosCovCartesian>> g_poscovcartesian_publisher;
+extern std::shared_ptr<rclcpp::Publisher<septentrio_gnss_driver_msgs::msg::PosCovGeodetic>> g_poscovgeodetic_publisher;
+extern std::shared_ptr<rclcpp::Publisher<septentrio_gnss_driver_msgs::msg::AttEuler>> g_atteuler_publisher;
+extern std::shared_ptr<rclcpp::Publisher<septentrio_gnss_driver_msgs::msg::AttCovEuler>> g_attcoveuler_publisher;
+extern std::shared_ptr<rclcpp::Publisher<sensor_msgs::msg::TimeReference>> g_gpst_publisher;
+extern std::shared_ptr<rclcpp::Publisher<sensor_msgs::msg::NavSatFix>> g_navsatfix_publisher;
+extern std::shared_ptr<rclcpp::Publisher<gps_msgs::msg::GPSFix>> g_gpsfix_publisher;
+extern std::shared_ptr<rclcpp::Publisher<geometry_msgs::msg::PoseWithCovarianceStamped>> g_posewithcovariancestamped_publisher;
+extern std::shared_ptr<rclcpp::Publisher<diagnostic_msgs::msg::DiagnosticArray>> g_diagnosticarray_publisher;
 extern const uint32_t g_ROS_QUEUE_SIZE;
-extern ros::Time g_unix_time;
+extern rclcpp::Time g_unix_time;
 extern bool g_read_from_sbf_log;
 
 //! Enum for NavSatFix's status.status field, which is obtained from PVTGeodetic's Mode field
@@ -193,7 +208,7 @@ namespace io_comm_rx
 	 * @param[in] use_gnss If true, the TOW as transmitted with the SBF block is used, otherwise the current time
 	 * @return ros::Time object containing seconds and nanoseconds since last epoch
 	 */
-	ros::Time timestampSBF(uint32_t tow, bool use_gnss);
+	rclcpp::Time timestampSBF(uint32_t tow, bool use_gnss);
 	
 	/**
 	 * @class RxMessage
@@ -397,66 +412,66 @@ namespace io_comm_rx
 			 * @param[in] data The (packed and aligned) struct instance used to populate the ROS message PVTCartesian
 			 * @return A smart pointer to the ROS message PVTCartesian just created
 			 */
-			septentrio_gnss_driver::PVTCartesianPtr PVTCartesianCallback(PVTCartesian& data);
+			septentrio_gnss_driver_msgs::msg::PVTCartesian::SharedPtr PVTCartesianCallback(PVTCartesian& data);
 			
 			/**
 			 * @brief Callback function when reading PVTGeodetic blocks
 			 * @param[in] data The (packed and aligned) struct instance used to populate the ROS message PVTGeodetic
 			 * @return A smart pointer to the ROS message PVTGeodetic just created
 			 */
-			septentrio_gnss_driver::PVTGeodeticPtr PVTGeodeticCallback(PVTGeodetic& data);
+			septentrio_gnss_driver_msgs::msg::PVTGeodetic::SharedPtr PVTGeodeticCallback(PVTGeodetic& data);
 			
 			/**
 			 * @brief Callback function when reading PosCovCartesian blocks
 			 * @param[in] data The (packed and aligned) struct instance used to populate the ROS message PosCovCartesian
 			 * @return A smart pointer to the ROS message PosCovCartesian just created
 			 */
-			septentrio_gnss_driver::PosCovCartesianPtr PosCovCartesianCallback(PosCovCartesian& data);
+			septentrio_gnss_driver_msgs::msg::PosCovCartesian::SharedPtr PosCovCartesianCallback(PosCovCartesian& data);
 			
 			/**
 			 * @brief Callback function when reading PosCovGeodetic blocks
 			 * @param[in] data The (packed and aligned) struct instance used to populate the ROS message PosCovGeodetic
 			 * @return A smart pointer to the ROS message PosCovGeodetic just created
 			 */
-			septentrio_gnss_driver::PosCovGeodeticPtr PosCovGeodeticCallback(PosCovGeodetic& data);
+			septentrio_gnss_driver_msgs::msg::PosCovGeodetic::SharedPtr PosCovGeodeticCallback(PosCovGeodetic& data);
 			
 			/**
 			 * @brief Callback function when reading AttEuler blocks
 			 * @param[in] data The (packed and aligned) struct instance used to populate the ROS message AttEuler
 			 * @return A smart pointer to the ROS message AttEuler just created
 			 */
-			septentrio_gnss_driver::AttEulerPtr AttEulerCallback(AttEuler& data);
+			septentrio_gnss_driver_msgs::msg::AttEuler::SharedPtr AttEulerCallback(AttEuler& data);
 			
 			/**
 			 * @brief Callback function when reading AttCovEuler blocks
 			 * @param[in] data The (packed and aligned) struct instance used to populate the ROS message AttCovEuler
 			 * @return A smart pointer to the ROS message AttCovEuler just created
 			 */
-			septentrio_gnss_driver::AttCovEulerPtr AttCovEulerCallback(AttCovEuler& data);
+			septentrio_gnss_driver_msgs::msg::AttCovEuler::SharedPtr AttCovEulerCallback(AttCovEuler& data);
 			
 			/**
 			 * @brief "Callback" function when constructing NavSatFix messages
 			 * @return A smart pointer to the ROS message NavSatFix just created
 			 */
-			sensor_msgs::NavSatFixPtr NavSatFixCallback();
+			sensor_msgs::msg::NavSatFix::SharedPtr NavSatFixCallback();
 			
 			/**
 			 * @brief "Callback" function when constructing GPSFix messages
 			 * @return A smart pointer to the ROS message GPSFix just created
 			 */
-			gps_common::GPSFixPtr GPSFixCallback();
+			gps_msgs::msg::GPSFix::SharedPtr GPSFixCallback();
 			
 			/**
 			 * @brief "Callback" function when constructing PoseWithCovarianceStamped messages
 			 * @return A smart pointer to the ROS message PoseWithCovarianceStamped just created
 			 */
-			geometry_msgs::PoseWithCovarianceStampedPtr PoseWithCovarianceStampedCallback();
+			geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr PoseWithCovarianceStampedCallback();
 			
 			/**
 			 * @brief "Callback" function when constructing diagnostic_msgs::DiagnosticArray messages
 			 * @return A smart pointer to the ROS message diagnostic_msgs::DiagnosticArray just created
 			 */
-			diagnostic_msgs::DiagnosticArrayPtr DiagnosticArrayCallback();
+			diagnostic_msgs::msg::DiagnosticArray::SharedPtr DiagnosticArrayCallback();
 			
 	};
 }

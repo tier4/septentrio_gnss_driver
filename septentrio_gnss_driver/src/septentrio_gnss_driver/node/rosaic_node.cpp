@@ -29,6 +29,7 @@
 // ****************************************************************************
 
 #include <septentrio_gnss_driver/node/rosaic_node.hpp>
+#include <regex>
 
 /**
  * @file rosaic_node.cpp
@@ -36,9 +37,19 @@
  * @brief The heart of the ROSaic driver: The ROS node that represents it
  */
  
-rosaic_node::ROSaicNode::ROSaicNode()
+rosaic_node::ROSaicNode::ROSaicNode() : Node("septentrio_gnss")
 {
-	ROS_DEBUG("Called ROSaicNode() constructor..");
+	g_use_gnss_time = declare_parameter<bool>("use_gnss_time", true);
+	g_frame_id = declare_parameter<std::string>("frame_id", (std::string) "gnss");
+	g_publish_gpst = declare_parameter<bool>("publish.gpst", true);
+	g_publish_navsatfix = declare_parameter<bool>("publish.navsatfix", true);
+	g_publish_gpsfix = declare_parameter<bool>("publish.gpsfix", true);
+	g_publish_pose = declare_parameter<bool>("publish.pose", true);
+	g_publish_diagnostics = declare_parameter<bool>("publish.diagnostics", true);
+	int leap_seconds = declare_parameter<int>("leap_seconds", 18);
+	getROSInt("leap_seconds", g_leap_seconds, static_cast<uint32_t>(18), leap_seconds);
+
+	RCLCPP_DEBUG(this->get_logger(), "Called ROSaicNode() constructor..");
 	
 	// Parameters must be set before initializing IO
 	connected_ = false;
@@ -55,14 +66,12 @@ rosaic_node::ROSaicNode::ROSaicNode()
 	// its necessary corrections-related parameters
 	if (!g_read_from_sbf_log)
 	{
-		boost::mutex::scoped_lock lock(connection_mutex_);
-		connection_condition_.wait(lock, [this](){return connected_;});
+		while(!connected_) reconnect();
 		configureRx();
 	}
 	
 	// Since we already have a ros::Spin() elsewhere, we use waitForShutdown() here
-	ros::waitForShutdown();
-	ROS_DEBUG("Leaving ROSaicNode() constructor..");
+	RCLCPP_DEBUG(this->get_logger(), "Leaving ROSaicNode() constructor..");
 }
 
 //! The send() method of AsyncManager class is paramount for this purpose.
@@ -72,17 +81,17 @@ rosaic_node::ROSaicNode::ROSaicNode()
 //! we send to it in this method and could result in an invalid command. Hence we first enter command mode via "SSSSSSSSSS".
 void rosaic_node::ROSaicNode::configureRx()
 {
-	ROS_DEBUG("Called configureRx() method");
+	RCLCPP_DEBUG(this->get_logger(), "Called configureRx() method");
 	
 	// It is imperative to hold a lock on the mutex "g_response_mutex" while modifying the variable 
 	// "g_response_received". Same for "g_cd_mutex" and "g_cd_received".
-	boost::mutex::scoped_lock lock(g_response_mutex);
-	boost::mutex::scoped_lock lock_cd(g_cd_mutex);
+	std::unique_lock<std::mutex> lock(g_response_mutex);
+	std::unique_lock<std::mutex> lock_cd(g_cd_mutex);
 	
 	// Determining communication mode: TCP vs USB/Serial
 	unsigned stream = 1;
-	boost::smatch match;
-	boost::regex_match(device_, match, boost::regex("(tcp)://(.+):(\\d+)"));
+	std::smatch match;
+	std::regex_match(device_, match, std::regex("(tcp)://(.+):(\\d+)"));
 	std::string proto(match[1]);
 	std::string rx_port;
 	if (proto == "tcp") 
@@ -347,7 +356,7 @@ void rosaic_node::ROSaicNode::configureRx()
 		}
 		else 
 		{
-			ROS_ERROR("Invalid mode specified for NTRIP settings.");
+			RCLCPP_ERROR(this->get_logger(), "Invalid mode specified for NTRIP settings.");
 		}
 	}
 	else 	// Since the Rx does not have internet (and you will not be able to share it via USB), 
@@ -386,79 +395,84 @@ void rosaic_node::ROSaicNode::configureRx()
 			IO.send(ss.str());
 		}
 	}
-	ROS_DEBUG("Leaving configureRx() method");
+	RCLCPP_DEBUG(this->get_logger(), "Leaving configureRx() method");
 }
 void rosaic_node::ROSaicNode::getROSParams() 
 {
 	// Communication parameters
-	g_nh->param("device", device_, std::string("/dev/ttyACM0"));
-	getROSInt("serial/baudrate", baudrate_, static_cast<uint32_t>(115200));
-	g_nh->param("serial/hw_flow_control", hw_flow_control_, std::string("off"));
-	g_nh->param("serial/rx_serial_port", rx_serial_port_, std::string("USB1"));
+	device_ = declare_parameter<std::string>("device", std::string("/dev/ttyACM0"));
+    int serial_baudrate = declare_parameter<int>("serial.baudrate", 115200);
+	getROSInt("serial.baudrate", baudrate_, static_cast<uint32_t>(115200), serial_baudrate);
+	hw_flow_control_ = declare_parameter<std::string>("serial.hw_flow_control", std::string("off"));
+	rx_serial_port_ = declare_parameter<std::string>("serial.rx_serial_port", std::string("USB1"));
 	
-	g_nh->param("reconnect_delay_s", reconnect_delay_s_, 4.0f);
+	reconnect_delay_s_ = declare_parameter<int>("reconnect_delay_s", 4.0f);
 	
 	// Polling period parameters
-	getROSInt("polling_period/pvt", polling_period_pvt_, static_cast<uint32_t>(1000));
+	int polling_period_pvt = declare_parameter<int>("polling_period.pvt", 1000);
+	getROSInt("polling_period.pvt", polling_period_pvt_, static_cast<uint32_t>(1000), polling_period_pvt);
 	if (polling_period_pvt_ != 10 && polling_period_pvt_ != 20 && polling_period_pvt_ != 50 && polling_period_pvt_ != 100 
 	&& polling_period_pvt_ != 200 && polling_period_pvt_ != 250 && polling_period_pvt_ != 500 && polling_period_pvt_ != 1000 
 	&& polling_period_pvt_ != 2000 && polling_period_pvt_ != 5000 && polling_period_pvt_ != 10000)
 	{
-		ROS_ERROR("Please specify a valid polling period for PVT-related SBF blocks and NMEA messages.");
+		RCLCPP_ERROR(this->get_logger(), "Please specify a valid polling period for PVT-related SBF blocks and NMEA messages.");
 	}
-	getROSInt("polling_period/rest", polling_period_rest_, static_cast<uint32_t>(1000));
+	int polling_period_rest = declare_parameter<int>("polling_period.rest", 1000);
+	getROSInt("polling_period.rest", polling_period_rest_, static_cast<uint32_t>(1000), polling_period_rest);
 	if (polling_period_rest_ != 10 && polling_period_rest_ != 20 && polling_period_rest_ != 50 && polling_period_rest_ != 100 
 	&& polling_period_rest_ != 200 && polling_period_rest_ != 250 && polling_period_rest_ != 500 && polling_period_rest_ != 1000 
 	&& polling_period_rest_ != 2000 && polling_period_rest_ != 5000 && polling_period_rest_ != 10000)
 	{
-		ROS_ERROR("Please specify a valid polling period for PVT-unrelated SBF blocks and NMEA messages.");
+		RCLCPP_ERROR(this->get_logger(), "Please specify a valid polling period for PVT-unrelated SBF blocks and NMEA messages.");
 	}
 	
 	// Datum and marker-to-ARP offset
-	g_nh->param("datum", datum_, std::string("ETRS89"));
-	g_nh->param("ant_type", ant_type_, std::string("Unknown"));
-	g_nh->param("ant_serial_nr", ant_serial_nr_, std::string("Unknown"));
-	g_nh->param("marker_to_arp/delta_e", delta_e_, 0.0f);
-	g_nh->param("marker_to_arp/delta_n", delta_n_, 0.0f);
-	g_nh->param("marker_to_arp/delta_u", delta_u_, 0.0f);
+	datum_ = declare_parameter<std::string>("datum", std::string("ETRS89"));
+	ant_type_ = declare_parameter<std::string>("ant_type", std::string("Unknown"));
+	ant_serial_nr_ = declare_parameter<std::string>("ant_serial_nr", std::string("Unknown"));
+	delta_e_ = declare_parameter<float>("marker_to_arp.delta_e", 0.0f);
+	delta_n_ = declare_parameter<float>("marker_to_arp.delta_n", 0.0f);
+	delta_u_ = declare_parameter<float>("marker_to_arp.delta_u", 0.0f);
 	
 	// Correction service parameters
-	g_nh->param("ntrip_settings/mode", mode_, std::string("off"));
-	g_nh->param("ntrip_settings/caster", caster_, std::string());
-	getROSInt("ntrip_settings/caster_port", caster_port_, static_cast<uint32_t>(0));
-	g_nh->param("ntrip_settings/username", username_, std::string());
-	g_nh->param("ntrip_settings/password", password_, std::string());
-	g_nh->param("ntrip_settings/mountpoint", mountpoint_, std::string());
-	g_nh->param("ntrip_settings/ntrip_version", ntrip_version_, std::string("v2"));
-	g_nh->param("ntrip_settings/send_gga", send_gga_, std::string("auto"));
-	g_nh->param("ntrip_settings/rx_has_internet", rx_has_internet_, false);
-	g_nh->param("ntrip_settings/rtcm_version", rtcm_version_, std::string("RTCMv3"));
-	getROSInt("ntrip_settings/rx_input_corrections_tcp", rx_input_corrections_tcp_, static_cast<uint32_t>(28785));
-	g_nh->param("ntrip_settings/rx_input_corrections_serial", rx_input_corrections_serial_, std::string("USB2"));
+	mode_ = declare_parameter<std::string>("ntrip_settings.mode", std::string("off"));
+	caster_ = declare_parameter<std::string>("ntrip_settings.caster", std::string());
+    int ntrip_settings_caster_port = declare_parameter("ntrip_settings.caster_port", 0);
+	getROSInt("ntrip_settings.caster_port", caster_port_, static_cast<uint32_t>(0), ntrip_settings_caster_port);
+	username_ = declare_parameter<std::string>("ntrip_settings.username", std::string());
+	password_ = declare_parameter<std::string>("ntrip_settings.password", std::string());
+	mountpoint_ = declare_parameter<std::string>("ntrip_settings.mountpoint", std::string());
+	ntrip_version_ = declare_parameter<std::string>("ntrip_settings.ntrip_version", std::string("v2"));
+	send_gga_ = declare_parameter<std::string>("ntrip_settings.send_gga", std::string("auto"));
+	rx_has_internet_ = declare_parameter<bool>("ntrip_settings.rx_has_internet", false);
+	rtcm_version_ = declare_parameter<std::string>("ntrip_settings.rtcm_version", std::string("RTCMv3"));
+    int ntrip_settings_rx_input_corrections_tcp = declare_parameter("ntrip_settings.rx_input_corrections_tcp", 28785);
+	getROSInt("ntrip_settings.rx_input_corrections_tcp", rx_input_corrections_tcp_, static_cast<uint32_t>(28785), ntrip_settings_rx_input_corrections_tcp);
+	rx_input_corrections_serial_ = declare_parameter<std::string>("ntrip_settings.rx_input_corrections_serial", std::string("USB2"));
 	
 	// Publishing parameters, the others remained global since they need to be accessed in the callbackhandlers.hpp file
-	g_nh->param("publish/gpgga", publish_gpgga_, true);
-	g_nh->param("publish/gprmc", publish_gprmc_, true);
-	g_nh->param("publish/gpgsa", publish_gpgsa_, true);
-	g_nh->param("publish/gpgsv", publish_gpgsv_, true);
-	g_nh->param("publish/pvtcartesian", publish_pvtcartesian_, true);
-	g_nh->param("publish/pvtgeodetic", publish_pvtgeodetic_, true);
-	g_nh->param("publish/poscovcartesian", publish_poscovcartesian_, true);
-	g_nh->param("publish/poscovgeodetic", publish_poscovgeodetic_, true);
-	g_nh->param("publish/atteuler", publish_atteuler_, true);
-	g_nh->param("publish/attcoveuler", publish_attcoveuler_, true);
+	publish_gpgga_ = declare_parameter<bool>("publish.gpgga", true);
+	publish_gprmc_ = declare_parameter<bool>("publish.gprmc", true);
+	publish_gpgsa_ = declare_parameter<bool>("publish.gpgsa", true);
+	publish_gpgsv_ = declare_parameter<bool>("publish.gpgsv", true);
+	publish_pvtcartesian_ = declare_parameter<bool>("publish.pvtcartesian", true);
+	publish_pvtgeodetic_ = declare_parameter<bool>("publish.pvtgeodetic", true);
+	publish_poscovcartesian_ = declare_parameter<bool>("publish.poscovcartesian", true);
+	publish_poscovgeodetic_ = declare_parameter<bool>("publish.poscovgeodetic", true);
+	publish_atteuler_ = declare_parameter<bool>("publish.atteuler", true);
+	publish_attcoveuler_ = declare_parameter<bool>("publish.attcoveuler", true);
 
 	// To be implemented: RTCM, setting datum, raw data settings, PPP, SBAS, fix mode...
-	ROS_DEBUG("Finished getROSParams() method");
+	RCLCPP_DEBUG(this->get_logger(), "Finished getROSParams() method");
 
 }
 
 void rosaic_node::ROSaicNode::initializeIO() 
 {
-	ROS_DEBUG("Called initializeIO() method");
-	boost::smatch match;
+	RCLCPP_DEBUG(this->get_logger(), "Called initializeIO() method");
+	std::smatch match;
 	// In fact: smatch is a typedef of match_results<string::const_iterator>
-	if (boost::regex_match(device_, match, boost::regex("(tcp)://(.+):(\\d+)")))
+	if (std::regex_match(device_, match, std::regex("(tcp)://(.+):(\\d+)")))
 	// C++ needs \\d instead of \d: Both mean decimal.
 	// Note that regex_match can be used with a smatch object to store results, or without. In any case, 
 	// true is returned if and only if it matches the !complete! string.
@@ -472,36 +486,36 @@ void rosaic_node::ROSaicNode::initializeIO()
 		
 		serial_ = false;
 		g_read_from_sbf_log = false;
-		boost::thread temporary_thread(boost::bind(&ROSaicNode::connect, this));
-		temporary_thread.detach();
+		connect();
 	}
-	else if (boost::regex_match(device_, match, boost::regex("(file_name):(\\w+.sbf)")))
+	else if (std::regex_match(device_, match, std::regex("(file_name):(\\w+.sbf)")))
 	{
 		serial_ = false;
 		g_read_from_sbf_log = true;
-		g_unix_time.sec = 0;
-		g_unix_time.nsec = 0;
-		boost::thread temporary_thread(boost::bind(&ROSaicNode::prepareSBFFileReading, this, match[2]));
-		temporary_thread.detach();
+		g_unix_time = rclcpp::Time(0, 0);
+		prepareSBFFileReading(match[2]);
+		//std::thread temporary_thread(boost::bind(&ROSaicNode::prepareSBFFileReading, this, match[2]));
+		//temporary_thread.detach();
 	}
-	else if (boost::regex_match(device_, match, boost::regex("(serial):(.+)")))
+	else if (std::regex_match(device_, match, std::regex("(serial):(.+)")))
 	{
 		serial_ = true;
 		g_read_from_sbf_log = false;
 		std::string proto(match[2]);
 		std::stringstream ss;
 		ss << "Searching for serial port" << proto;
-		ROS_DEBUG("%s", ss.str().c_str());
-		boost::thread temporary_thread(boost::bind(&ROSaicNode::connect, this));
-		temporary_thread.detach();
+		RCLCPP_DEBUG(this->get_logger(), "%s", ss.str().c_str());
+		connect();
+		//std::thread temporary_thread(boost::bind(&ROSaicNode::connect, this));
+		//temporary_thread.detach();
 	}
 	else
 	{
 		std::stringstream ss;
-		ss << "Device is unsupported. Perhaps you meant 'tcp://host:port' or 'file_name:xxx.sbf' or 'serial:/path/to/device'?";
-		ROS_ERROR("%s", ss.str().c_str());
+		ss << "Device[" << device_ << "] is unsupported. Perhaps you meant 'tcp://host:port' or 'file_name:xxx.sbf' or 'serial:/path/to/device'?";
+		RCLCPP_ERROR(this->get_logger(), "%s", ss.str().c_str());
 	}
-	ROS_DEBUG("Leaving initializeIO() method");
+	RCLCPP_DEBUG(this->get_logger(), "Leaving initializeIO() method");
 }
 
 void rosaic_node::ROSaicNode::prepareSBFFileReading(std::string file_name)
@@ -510,14 +524,14 @@ void rosaic_node::ROSaicNode::prepareSBFFileReading(std::string file_name)
 	{
 		std::stringstream ss;
 		ss << "Setting up everything needed to read from" << file_name;
-		ROS_DEBUG("%s", ss.str().c_str());
+		RCLCPP_DEBUG(this->get_logger(), "%s", ss.str().c_str());
 		IO.initializeSBFFileReading(file_name);
 	}
 	catch (std::runtime_error& e)
 	{
 		std::stringstream ss;
 		ss << "Comm_IO::initializeSBFFileReading() failed for SBF File" << file_name << " due to: " << e.what();
-		ROS_ERROR("%s", ss.str().c_str());
+		RCLCPP_ERROR(this->get_logger(), "%s", ss.str().c_str());
 	}
 	
 }
@@ -525,24 +539,28 @@ void rosaic_node::ROSaicNode::prepareSBFFileReading(std::string file_name)
 
 void rosaic_node::ROSaicNode::connect() 
 {
-	ROS_DEBUG("Called connect() method");
-	ROS_DEBUG("Setting ROS timer for calling reconnect() method until connection succeds");
-	reconnect_timer_ = g_nh->createTimer(ros::Duration(reconnect_delay_s_), &ROSaicNode::reconnect, this);
-	reconnect_timer_.start();
-	ROS_DEBUG("Started ROS timer for calling reconnect() method until connection succeds"); 
-	ros::spin();
-	ROS_DEBUG("Leaving connect() method"); // This will never be output since ros::spin() is on the line above.
+	RCLCPP_DEBUG(this->get_logger(), "Called connect() method");
+	RCLCPP_DEBUG(this->get_logger(), "Setting ROS timer for calling reconnect() method until connection succeds");
+	const auto period_ns =
+	    std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::duration<double>(reconnect_delay_s_));
+	auto timer_callback = std::bind(&ROSaicNode::reconnect, this);
+	reconnect_timer_ = std::make_shared<rclcpp::GenericTimer<decltype(timer_callback)>>(
+	    get_clock(), period_ns, std::move(timer_callback),
+	    get_node_base_interface()->get_context());
+    get_node_timers_interface()->add_timer(reconnect_timer_, nullptr);
+
+	RCLCPP_DEBUG(this->get_logger(), "Leaving connect() method"); // This will never be output since ros::spin() is on the line above.
 }
 
 //! In serial mode (not USB, since the Rx port is then called USB1 or USB2), please ensure that you are 
 //! connected to the Rx's COM1, COM2 or COM3 port, !if! you employ UART hardware flow control.
-void rosaic_node::ROSaicNode::reconnect(const ros::TimerEvent& event) 
+void rosaic_node::ROSaicNode::reconnect()
 {
-	ROS_DEBUG("Called reconnect() method");
+	RCLCPP_DEBUG(this->get_logger(), "Called reconnect() method");
 	if (connected_ == true)
 	{
-		reconnect_timer_.stop();
-		ROS_DEBUG("Stopped ROS timer since successully connected.");
+		reconnect_timer_->cancel();
+		RCLCPP_DEBUG(this->get_logger(), "Stopped ROS timer since successully connected.");
 	}
 	else
 	{
@@ -551,7 +569,7 @@ void rosaic_node::ROSaicNode::reconnect(const ros::TimerEvent& event)
 			bool initialize_serial_return = false;
 			try
 			{
-				ROS_INFO("Connecting serially to device %s, targeted baudrate: %u", device_.c_str(), baudrate_);
+				RCLCPP_INFO(this->get_logger(), "Connecting serially to device %s, targeted baudrate: %u", device_.c_str(), baudrate_);
 				initialize_serial_return = IO.initializeSerial(device_, baudrate_, hw_flow_control_);
 			}
 			catch (std::runtime_error& e)
@@ -559,12 +577,13 @@ void rosaic_node::ROSaicNode::reconnect(const ros::TimerEvent& event)
 				{
 					std::stringstream ss;
 					ss << "IO.initializeSerial() failed for device " << device_ << " due to: " << e.what();
-					ROS_ERROR("%s", ss.str().c_str());
+					RCLCPP_ERROR(this->get_logger(), "%s", ss.str().c_str());
 				}
 			}
 			if (initialize_serial_return)
 			{
-				boost::mutex::scoped_lock lock(connection_mutex_);
+				std::unique_lock<std::mutex> lock(connection_mutex_);
+				//std::mutex::scoped_lock lock(connection_mutex_);
 				connected_ = true;
 				lock.unlock();
 				connection_condition_.notify_one();
@@ -575,7 +594,7 @@ void rosaic_node::ROSaicNode::reconnect(const ros::TimerEvent& event)
 			bool initialize_tcp_return = false;
 			try
 			{
-				ROS_INFO("Connecting to tcp://%s:%s ...", tcp_host_.c_str(), tcp_port_.c_str());
+				RCLCPP_INFO(this->get_logger(), "Connecting to tcp://%s:%s ...", tcp_host_.c_str(), tcp_port_.c_str());
 				initialize_tcp_return = IO.initializeTCP(tcp_host_, tcp_port_);
 			}
 			catch (std::runtime_error& e)
@@ -584,19 +603,20 @@ void rosaic_node::ROSaicNode::reconnect(const ros::TimerEvent& event)
 					std::stringstream ss;
 					ss << "IO.initializeTCP() failed for host " << tcp_host_ << " on port " << tcp_port_ << 
 						" due to: " << e.what();
-					ROS_ERROR("%s", ss.str().c_str());
+					RCLCPP_ERROR(this->get_logger(), "%s", ss.str().c_str());
 				}
 			}
 			if (initialize_tcp_return)
 			{
-				boost::mutex::scoped_lock lock(connection_mutex_);
+				std::unique_lock<std::mutex> lock(connection_mutex_);
+				//std::mutex::scoped_lock lock(connection_mutex_);
 				connected_ = true;
 				lock.unlock();
 				connection_condition_.notify_one();
 			}
 		}
 	}
-	ROS_DEBUG("Leaving reconnect() method");
+	RCLCPP_DEBUG(this->get_logger(), "Leaving reconnect() method");
 }
 
 //! initializeSerial is not self-contained: The for loop in Callbackhandlers' handle method would 
@@ -605,94 +625,111 @@ void rosaic_node::ROSaicNode::reconnect(const ros::TimerEvent& event)
 //! called, which publishes the ROS message.
 void rosaic_node::ROSaicNode::defineMessages() 
 {
-	ROS_DEBUG("Called defineMessages() method");
+	RCLCPP_DEBUG(this->get_logger(), "Called defineMessages() method");
+    rclcpp::QoS durable_qos(g_ROS_QUEUE_SIZE);
+    durable_qos.transient_local();
 	
 	if (publish_gpgga_ == true)
 	{
-		IO.handlers_.callbackmap_ = IO.getHandlers().insert<septentrio_gnss_driver::Gpgga>("$GPGGA");
+		IO.handlers_.callbackmap_ = IO.getHandlers().insert<septentrio_gnss_driver_msgs::msg::Gpgga>("$GPGGA");
+		g_gpgga_publisher = create_publisher<septentrio_gnss_driver_msgs::msg::Gpgga>("/gpgga", durable_qos);
 	}
 	if (publish_gprmc_ == true)
 	{
-		IO.handlers_.callbackmap_ = IO.getHandlers().insert<septentrio_gnss_driver::Gprmc>("$GPRMC");
+		IO.handlers_.callbackmap_ = IO.getHandlers().insert<septentrio_gnss_driver_msgs::msg::Gprmc>("$GPRMC");
+		g_gprmc_publisher = create_publisher<septentrio_gnss_driver_msgs::msg::Gprmc>("/gprmc", durable_qos);
 	}
 	if (publish_gpgsa_ == true)
 	{
-		IO.handlers_.callbackmap_ = IO.getHandlers().insert<septentrio_gnss_driver::Gpgsa>("$GPGSA");
+		IO.handlers_.callbackmap_ = IO.getHandlers().insert<septentrio_gnss_driver_msgs::msg::Gpgsa>("$GPGSA");
+		g_gpgsa_publisher = create_publisher<septentrio_gnss_driver_msgs::msg::Gpgsa>("/gpgsa", durable_qos);
 	}
 	if (publish_gpgsv_ == true)
 	{
-		IO.handlers_.callbackmap_ = IO.getHandlers().insert<septentrio_gnss_driver::Gpgsv>("$GPGSV");
-		IO.handlers_.callbackmap_ = IO.getHandlers().insert<septentrio_gnss_driver::Gpgsv>("$GLGSV");
-		IO.handlers_.callbackmap_ = IO.getHandlers().insert<septentrio_gnss_driver::Gpgsv>("$GAGSV");
-		IO.handlers_.callbackmap_ = IO.getHandlers().insert<septentrio_gnss_driver::Gpgsv>("$GBGSV");
+		IO.handlers_.callbackmap_ = IO.getHandlers().insert<septentrio_gnss_driver_msgs::msg::Gpgsv>("$GPGSV");
+		IO.handlers_.callbackmap_ = IO.getHandlers().insert<septentrio_gnss_driver_msgs::msg::Gpgsv>("$GLGSV");
+		IO.handlers_.callbackmap_ = IO.getHandlers().insert<septentrio_gnss_driver_msgs::msg::Gpgsv>("$GAGSV");
+		IO.handlers_.callbackmap_ = IO.getHandlers().insert<septentrio_gnss_driver_msgs::msg::Gpgsv>("$GBGSV");
+		g_gpgsv_publisher = create_publisher<septentrio_gnss_driver_msgs::msg::Gpgsv>("/gpgsv", durable_qos);
 	}
 	if (publish_pvtcartesian_ == true)
 	{
-		IO.handlers_.callbackmap_ = IO.getHandlers().insert<septentrio_gnss_driver::PVTCartesian>("4006");
+		IO.handlers_.callbackmap_ = IO.getHandlers().insert<septentrio_gnss_driver_msgs::msg::PVTCartesian>("4006");
+		g_pvtcartesian_publisher = create_publisher<septentrio_gnss_driver_msgs::msg::PVTCartesian>("/pvtcartesian", durable_qos);
 	}
 	if (publish_pvtgeodetic_ == true)
 	{
-		IO.handlers_.callbackmap_ = IO.getHandlers().insert<septentrio_gnss_driver::PVTGeodetic>("4007");
+		IO.handlers_.callbackmap_ = IO.getHandlers().insert<septentrio_gnss_driver_msgs::msg::PVTGeodetic>("4007");
+		g_pvtgeodetic_publisher = create_publisher<septentrio_gnss_driver_msgs::msg::PVTGeodetic>("/pvtgeodetic", durable_qos);
 	}
 	if (publish_poscovcartesian_ == true)
 	{
-		IO.handlers_.callbackmap_ = IO.getHandlers().insert<septentrio_gnss_driver::PosCovCartesian>("5905");
+		IO.handlers_.callbackmap_ = IO.getHandlers().insert<septentrio_gnss_driver_msgs::msg::PosCovCartesian>("5905");
+		g_poscovcartesian_publisher = create_publisher<septentrio_gnss_driver_msgs::msg::PosCovCartesian>("/poscovcartesian", durable_qos);
 	}
 	if (publish_poscovgeodetic_ == true)
 	{
-		IO.handlers_.callbackmap_ = IO.getHandlers().insert<septentrio_gnss_driver::PosCovGeodetic>("5906");
+		IO.handlers_.callbackmap_ = IO.getHandlers().insert<septentrio_gnss_driver_msgs::msg::PosCovGeodetic>("5906");
+		g_poscovgeodetic_publisher = create_publisher<septentrio_gnss_driver_msgs::msg::PosCovGeodetic>("/poscovgeodetic", durable_qos);
 	}
 	if (publish_atteuler_ == true)
 	{
-		IO.handlers_.callbackmap_ = IO.getHandlers().insert<septentrio_gnss_driver::AttEuler>("5938");
+		IO.handlers_.callbackmap_ = IO.getHandlers().insert<septentrio_gnss_driver_msgs::msg::AttEuler>("5938");
+		g_atteuler_publisher = create_publisher<septentrio_gnss_driver_msgs::msg::AttEuler>("/atteuler", durable_qos);
 	}
 	if (publish_attcoveuler_ == true)
 	{
-		IO.handlers_.callbackmap_ = IO.getHandlers().insert<septentrio_gnss_driver::AttCovEuler>("5939");
+		IO.handlers_.callbackmap_ = IO.getHandlers().insert<septentrio_gnss_driver_msgs::msg::AttCovEuler>("5939");
+		g_attcoveuler_publisher = create_publisher<septentrio_gnss_driver_msgs::msg::AttCovEuler>("/attcoveuler", durable_qos);
 	}
 	if (g_publish_gpst == true)
 	{
 		IO.handlers_.callbackmap_ = IO.getHandlers().insert<int32_t>("GPST");
+		g_gpst_publisher = create_publisher<sensor_msgs::msg::TimeReference>("/gpst", durable_qos);
 	}
 	if (g_publish_navsatfix == true)
 	{
 		if (publish_pvtgeodetic_ == false || publish_poscovgeodetic_ == false)
 		{
-			ROS_ERROR("For a proper NavSatFix message, please set the publish/pvtgeodetic and the publish/poscovgeodetic ROSaic parameters both to true.");
+			RCLCPP_ERROR(this->get_logger(), "For a proper NavSatFix message, please set the publish/pvtgeodetic and the publish/poscovgeodetic ROSaic parameters both to true.");
 		}
-		IO.handlers_.callbackmap_ = IO.getHandlers().insert<sensor_msgs::NavSatFix>("NavSatFix");
+		IO.handlers_.callbackmap_ = IO.getHandlers().insert<sensor_msgs::msg::NavSatFix>("NavSatFix");
+		g_navsatfix_publisher = create_publisher<sensor_msgs::msg::NavSatFix>("/navsatfix", durable_qos);
 	}
 	if (g_publish_gpsfix == true)
 	{
 		if (publish_pvtgeodetic_ == false || publish_poscovgeodetic_ == false)
 		{
-			ROS_ERROR("For a proper GPSFix message, please set the publish/pvtgeodetic and the publish/poscovgeodetic ROSaic parameters both to true.");
+			RCLCPP_ERROR(this->get_logger(), "For a proper GPSFix message, please set the publish/pvtgeodetic and the publish/poscovgeodetic ROSaic parameters both to true.");
 		}
-		IO.handlers_.callbackmap_ = IO.getHandlers().insert<gps_common::GPSFix>("GPSFix");
+		IO.handlers_.callbackmap_ = IO.getHandlers().insert<gps_msgs::msg::GPSFix>("GPSFix");
 		// The following blocks are never published, yet are needed for the construction of the GPSFix message, hence we have empty callbacks.
 		IO.handlers_.callbackmap_ = IO.getHandlers().insert<int32_t>("4013"); // ChannelStatus block
 		IO.handlers_.callbackmap_ = IO.getHandlers().insert<int32_t>("4027"); // MeasEpoch block
 		IO.handlers_.callbackmap_ = IO.getHandlers().insert<int32_t>("4001"); // DOP block
 		IO.handlers_.callbackmap_ = IO.getHandlers().insert<int32_t>("5908"); // VelCovGeodetic block
+		g_gpsfix_publisher = create_publisher<gps_msgs::msg::GPSFix>("/gpsfix", durable_qos);
 	}
 	if (g_publish_pose == true)
 	{
 		if (publish_pvtgeodetic_ == false || publish_poscovgeodetic_ == false || publish_atteuler_ == false || 
 			publish_attcoveuler_ == false)
 		{
-			ROS_ERROR("For a proper PoseWithCovarianceStamped message, please set the publish/pvtgeodetic, publish/poscovgeodetic, publish_atteuler and publish_attcoveuler ROSaic parameters all to true.");
+			RCLCPP_ERROR(this->get_logger(), "For a proper PoseWithCovarianceStamped message, please set the publish/pvtgeodetic, publish/poscovgeodetic, publish_atteuler and publish_attcoveuler ROSaic parameters all to true.");
 		}
-		IO.handlers_.callbackmap_ = IO.getHandlers().insert<geometry_msgs::PoseWithCovarianceStamped>("PoseWithCovarianceStamped");
+		IO.handlers_.callbackmap_ = IO.getHandlers().insert<geometry_msgs::msg::PoseWithCovarianceStamped>("PoseWithCovarianceStamped");
+		g_posewithcovariancestamped_publisher = create_publisher<geometry_msgs::msg::PoseWithCovarianceStamped>("/pose", durable_qos);
 	}
 	if (g_publish_diagnostics == true)
 	{
-		IO.handlers_.callbackmap_ = IO.getHandlers().insert<diagnostic_msgs::DiagnosticArray>("DiagnosticArray");
+		IO.handlers_.callbackmap_ = IO.getHandlers().insert<diagnostic_msgs::msg::DiagnosticArray>("DiagnosticArray");
 		IO.handlers_.callbackmap_ = IO.getHandlers().insert<int32_t>("4014"); // ReceiverStatus block
 		IO.handlers_.callbackmap_ = IO.getHandlers().insert<int32_t>("4082"); // QualityInd block
 		IO.handlers_.callbackmap_ = IO.getHandlers().insert<int32_t>("5902"); // ReceiverSetup block
+		g_diagnosticarray_publisher = create_publisher<diagnostic_msgs::msg::DiagnosticArray>("/diagnostics", durable_qos);
 	}
 	// so on and so forth...
-	ROS_DEBUG("Leaving defineMessages() method");
+	RCLCPP_DEBUG(this->get_logger(), "Leaving defineMessages() method");
 }
 
 
@@ -715,17 +752,17 @@ std::string g_frame_id;
 //! The number of leap seconds that have been inserted into the UTC time
 uint32_t g_leap_seconds;
 //! Mutex to control changes of global variable "g_response_received"
-boost::mutex g_response_mutex;
+std::mutex g_response_mutex;
 //! Determines whether a command reply was received from the Rx
 bool g_response_received;
 //! Condition variable complementing "g_response_mutex"
-boost::condition_variable g_response_condition;
+std::condition_variable g_response_condition;
 //! Mutex to control changes of global variable "g_cd_received"
-boost::mutex g_cd_mutex;
+std::mutex g_cd_mutex;
 //! Determines whether the connection descriptor was received from the Rx
 bool g_cd_received;
 //! Condition variable complementing "g_cd_mutex"
-boost::condition_variable g_cd_condition;
+std::condition_variable g_cd_condition;
 //! Whether or not we still want to read the connection descriptor, which we only want in the very beginning to 
 //! know whether it is IP10, IP11 etc.
 bool g_read_cd;
@@ -767,7 +804,7 @@ bool g_receiverstatus_has_arrived_diagnostics;
 bool g_qualityind_has_arrived_diagnostics;
 //! When reading from an SBF file, the ROS publishing frequency is governed by the time stamps found in the SBF blocks
 //! therein.
-ros::Time g_unix_time;
+rclcpp::Time g_unix_time;
 //! Whether or not we are reading from an SBF file
 bool g_read_from_sbf_log;
 //! A C++ map for keeping track of the SBF blocks necessary to construct the GPSFix ROS message
@@ -778,26 +815,30 @@ std::map<std::string, uint32_t> g_NavSatFixMap;
 std::map<std::string, uint32_t> g_PoseWithCovarianceStampedMap;
 //! A C++ map for keeping track of SBF blocks necessary to construct the DiagnosticArray ROS message
 std::map<std::string, uint32_t> g_DiagnosticArrayMap;
-//! Node Handle for the ROSaic node
+//! ROS2 Publisher for the ROSaic node
+std::shared_ptr<rclcpp::Publisher<septentrio_gnss_driver_msgs::msg::Gpgga>> g_gpgga_publisher;
+std::shared_ptr<rclcpp::Publisher<septentrio_gnss_driver_msgs::msg::Gprmc>> g_gprmc_publisher;
+std::shared_ptr<rclcpp::Publisher<septentrio_gnss_driver_msgs::msg::Gpgsa>> g_gpgsa_publisher;
+std::shared_ptr<rclcpp::Publisher<septentrio_gnss_driver_msgs::msg::Gpgsv>> g_gpgsv_publisher;
+std::shared_ptr<rclcpp::Publisher<septentrio_gnss_driver_msgs::msg::PVTCartesian>> g_pvtcartesian_publisher;
+std::shared_ptr<rclcpp::Publisher<septentrio_gnss_driver_msgs::msg::PVTGeodetic>> g_pvtgeodetic_publisher;
+std::shared_ptr<rclcpp::Publisher<septentrio_gnss_driver_msgs::msg::PosCovCartesian>> g_poscovcartesian_publisher;
+std::shared_ptr<rclcpp::Publisher<septentrio_gnss_driver_msgs::msg::PosCovGeodetic>> g_poscovgeodetic_publisher;
+std::shared_ptr<rclcpp::Publisher<septentrio_gnss_driver_msgs::msg::AttEuler>> g_atteuler_publisher;
+std::shared_ptr<rclcpp::Publisher<septentrio_gnss_driver_msgs::msg::AttCovEuler>> g_attcoveuler_publisher;
+std::shared_ptr<rclcpp::Publisher<sensor_msgs::msg::TimeReference>> g_gpst_publisher;
+std::shared_ptr<rclcpp::Publisher<sensor_msgs::msg::NavSatFix>> g_navsatfix_publisher;
+std::shared_ptr<rclcpp::Publisher<gps_msgs::msg::GPSFix>> g_gpsfix_publisher;
+std::shared_ptr<rclcpp::Publisher<geometry_msgs::msg::PoseWithCovarianceStamped>> g_posewithcovariancestamped_publisher;
+std::shared_ptr<rclcpp::Publisher<diagnostic_msgs::msg::DiagnosticArray>> g_diagnosticarray_publisher;
 //! You must initialize the NodeHandle in the "main" function (or in any method called 
 //! indirectly or directly by the main function). 
-//! One can declare a pointer to the NodeHandle to be a global variable and then initialize it afterwards only...
-boost::shared_ptr<ros::NodeHandle> g_nh;
 //! Queue size for ROS publishers
 const uint32_t g_ROS_QUEUE_SIZE = 1;
 
 int main(int argc, char** argv) 
 {
-	ros::init(argc, argv, "septentrio_gnss");
-	g_nh.reset(new ros::NodeHandle("~")); 
-	g_nh->param("use_gnss_time", g_use_gnss_time, true);
-	g_nh->param("frame_id", g_frame_id, (std::string) "gnss"); 
-	g_nh->param("publish/gpst", g_publish_gpst, true);
-	g_nh->param("publish/navsatfix", g_publish_navsatfix, true);
-	g_nh->param("publish/gpsfix", g_publish_gpsfix, true);
-	g_nh->param("publish/pose", g_publish_pose, true);
-	g_nh->param("publish/diagnostics", g_publish_diagnostics, true);
-	rosaic_node::getROSInt("leap_seconds", g_leap_seconds, static_cast<uint32_t>(18));
+	rclcpp::init(argc, argv);
 	
 	g_response_received = false;
 	g_cd_received = false;
@@ -820,12 +861,7 @@ int main(int argc, char** argv)
 	g_receiverstatus_has_arrived_diagnostics = false;
 	g_qualityind_has_arrived_diagnostics = false;
 	
-	// The info logging level seems to be default, hence we modify log level momentarily..
-	// The following is the C++ version of rospy.init_node('my_ros_node', log_level=rospy.DEBUG)
-	if (ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME,
-								   ros::console::levels::Debug)) //debug is lowest level, shows everything
-	ros::console::notifyLoggerLevelsChanged();
-	
-	rosaic_node::ROSaicNode rx_node; // This launches everything we need, in theory :)
+	rclcpp::spin(std::make_shared<rosaic_node::ROSaicNode>());
+	rclcpp::shutdown();
 	return 0;
 }

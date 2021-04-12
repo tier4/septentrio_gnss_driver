@@ -59,12 +59,12 @@
 #ifndef GPGSA_HPP
 #define GPGSA_HPP
 
+#include <memory>
 // ROSaic includes
 #include <septentrio_gnss_driver/parsers/parser_base_class.hpp>
 #include <septentrio_gnss_driver/parsers/string_utilities.h>
 // Boost and ROS includes
-#include <septentrio_gnss_driver/Gpgsa.h>
-#include <boost/make_shared.hpp>
+#include "septentrio_gnss_driver_msgs/msg/gpgsa.hpp"
 
 extern std::string g_frame_id;
 
@@ -79,14 +79,14 @@ extern std::string g_frame_id;
  * @brief Derived class for parsing GSA messages
  * @date 29/09/20 
  */
-class GpgsaParser : public BaseParser<septentrio_gnss_driver::GpgsaPtr>
+class GpgsaParser : public BaseParser<septentrio_gnss_driver_msgs::msg::Gpgsa::SharedPtr>
 {
 	public:
 		
 		/**
 		 * @brief Constructor of the class GpgsaParser
 		 */
-		GpgsaParser(): BaseParser<septentrio_gnss_driver::GpgsaPtr>() {}
+		GpgsaParser(): BaseParser<septentrio_gnss_driver_msgs::msg::Gpgsa::SharedPtr>() {}
 
 		/**
 		 * @brief Returns the ASCII message ID, here "$GPGSA"
@@ -99,7 +99,7 @@ class GpgsaParser : public BaseParser<septentrio_gnss_driver::GpgsaPtr>
 		 * @param[in] sentence The GSA message to be parsed
 		 * @return A ROS message pointer of ROS type septentrio_gnss_driver::GpgsaPtr
 		 */
-		septentrio_gnss_driver::GpgsaPtr parseASCII(const NMEASentence& sentence) noexcept(false) override;
+		septentrio_gnss_driver_msgs::msg::Gpgsa::SharedPtr parseASCII(const NMEASentence& sentence) noexcept(false) override;
 		
 		/**
 		 * @brief Declares the string MESSAGE_ID

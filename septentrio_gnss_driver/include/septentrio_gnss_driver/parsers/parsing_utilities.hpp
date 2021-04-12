@@ -37,8 +37,7 @@
 #include <ctime> // C++ header, corresponds to <time.h> in C
 #include <cmath> // C++ header, corresponds to <math.h> in C
 // ROS includes
-#include <ros/ros.h>
-#include <geometry_msgs/Quaternion.h>
+#include "geometry_msgs/msg/quaternion.hpp"
 
 /**
  * @file parsing_utilities.hpp
@@ -198,7 +197,7 @@ namespace parsing_utilities
 	 * @param[in] roll Roll about the new East-axis
 	 * @return ROS message representing a quaternion
 	 */
-	geometry_msgs::Quaternion convertEulerToQuaternion(double yaw, double pitch, double roll); 
+	geometry_msgs::msg::Quaternion convertEulerToQuaternion(double yaw, double pitch, double roll);
 
 	/**
 	 * @brief Transforms the input polling period [milliseconds] into a uint32_t number that can be appended to either sec or msec for Rx commands

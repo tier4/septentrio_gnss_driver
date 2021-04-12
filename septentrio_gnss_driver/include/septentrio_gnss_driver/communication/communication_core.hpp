@@ -61,8 +61,8 @@
 								// in the preprocessor output iff the macroname is not defined.
 #define COMMUNICATION_CORE_HPP 	// Include guards help to avoid the double inclusion of header files, by defining a token = macro.
 
+#include <functional>
 // Boost includes
-#include <boost/function.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/asio.hpp>
 #include <boost/exception/diagnostic_information.hpp>  // dealing with bad file descriptor error
@@ -141,7 +141,7 @@ namespace io_comm_rx
 			 * @brief Set the I/O manager
 			 * @param[in] manager An I/O handler
 			 */
-			void setManager(const boost::shared_ptr<Manager>& manager);
+			void setManager(const std::shared_ptr<Manager>& manager);
 			
 			/**
 			 * @brief Reset the Serial I/O port, e.g. after a Rx reset
@@ -170,7 +170,7 @@ namespace io_comm_rx
 			std::string serial_port_;
 			//! Processes I/O stream data
 			//! This declaration is deliberately stream-independent (Serial or TCP).
-			boost::shared_ptr<Manager> manager_;
+			std::shared_ptr<Manager> manager_;
 			//! Baudrate at the moment, unless InitializeSerial or ResetSerial fail
 			uint32_t baudrate_;
 			

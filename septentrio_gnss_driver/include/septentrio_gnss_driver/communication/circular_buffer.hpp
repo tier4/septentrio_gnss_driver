@@ -28,9 +28,6 @@
 //
 // *****************************************************************************
 
-// ROS includes
-#include <ros/ros.h>
-
 // C++ library includes
 #include <cstdint>
 #include <algorithm>
