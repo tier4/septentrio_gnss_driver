@@ -1,6 +1,6 @@
 # Configuration Settings for the Rover Rx
 
-septentrio_gnss:
+/**:
   ros__parameters:
     device: tcp://192.168.110.197:28784
 

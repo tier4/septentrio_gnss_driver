@@ -632,17 +632,17 @@ void rosaic_node::ROSaicNode::defineMessages()
 	if (publish_gpgga_ == true)
 	{
 		IO.handlers_.callbackmap_ = IO.getHandlers().insert<septentrio_gnss_driver_msgs::msg::Gpgga>("$GPGGA");
-		g_gpgga_publisher = create_publisher<septentrio_gnss_driver_msgs::msg::Gpgga>("/gpgga", durable_qos);
+		g_gpgga_publisher = create_publisher<septentrio_gnss_driver_msgs::msg::Gpgga>("gpgga", durable_qos);
 	}
 	if (publish_gprmc_ == true)
 	{
 		IO.handlers_.callbackmap_ = IO.getHandlers().insert<septentrio_gnss_driver_msgs::msg::Gprmc>("$GPRMC");
-		g_gprmc_publisher = create_publisher<septentrio_gnss_driver_msgs::msg::Gprmc>("/gprmc", durable_qos);
+		g_gprmc_publisher = create_publisher<septentrio_gnss_driver_msgs::msg::Gprmc>("gprmc", durable_qos);
 	}
 	if (publish_gpgsa_ == true)
 	{
 		IO.handlers_.callbackmap_ = IO.getHandlers().insert<septentrio_gnss_driver_msgs::msg::Gpgsa>("$GPGSA");
-		g_gpgsa_publisher = create_publisher<septentrio_gnss_driver_msgs::msg::Gpgsa>("/gpgsa", durable_qos);
+		g_gpgsa_publisher = create_publisher<septentrio_gnss_driver_msgs::msg::Gpgsa>("gpgsa", durable_qos);
 	}
 	if (publish_gpgsv_ == true)
 	{
@@ -650,42 +650,42 @@ void rosaic_node::ROSaicNode::defineMessages()
 		IO.handlers_.callbackmap_ = IO.getHandlers().insert<septentrio_gnss_driver_msgs::msg::Gpgsv>("$GLGSV");
 		IO.handlers_.callbackmap_ = IO.getHandlers().insert<septentrio_gnss_driver_msgs::msg::Gpgsv>("$GAGSV");
 		IO.handlers_.callbackmap_ = IO.getHandlers().insert<septentrio_gnss_driver_msgs::msg::Gpgsv>("$GBGSV");
-		g_gpgsv_publisher = create_publisher<septentrio_gnss_driver_msgs::msg::Gpgsv>("/gpgsv", durable_qos);
+		g_gpgsv_publisher = create_publisher<septentrio_gnss_driver_msgs::msg::Gpgsv>("gpgsv", durable_qos);
 	}
 	if (publish_pvtcartesian_ == true)
 	{
 		IO.handlers_.callbackmap_ = IO.getHandlers().insert<septentrio_gnss_driver_msgs::msg::PVTCartesian>("4006");
-		g_pvtcartesian_publisher = create_publisher<septentrio_gnss_driver_msgs::msg::PVTCartesian>("/pvtcartesian", durable_qos);
+		g_pvtcartesian_publisher = create_publisher<septentrio_gnss_driver_msgs::msg::PVTCartesian>("pvtcartesian", durable_qos);
 	}
 	if (publish_pvtgeodetic_ == true)
 	{
 		IO.handlers_.callbackmap_ = IO.getHandlers().insert<septentrio_gnss_driver_msgs::msg::PVTGeodetic>("4007");
-		g_pvtgeodetic_publisher = create_publisher<septentrio_gnss_driver_msgs::msg::PVTGeodetic>("/pvtgeodetic", durable_qos);
+		g_pvtgeodetic_publisher = create_publisher<septentrio_gnss_driver_msgs::msg::PVTGeodetic>("pvtgeodetic", durable_qos);
 	}
 	if (publish_poscovcartesian_ == true)
 	{
 		IO.handlers_.callbackmap_ = IO.getHandlers().insert<septentrio_gnss_driver_msgs::msg::PosCovCartesian>("5905");
-		g_poscovcartesian_publisher = create_publisher<septentrio_gnss_driver_msgs::msg::PosCovCartesian>("/poscovcartesian", durable_qos);
+		g_poscovcartesian_publisher = create_publisher<septentrio_gnss_driver_msgs::msg::PosCovCartesian>("poscovcartesian", durable_qos);
 	}
 	if (publish_poscovgeodetic_ == true)
 	{
 		IO.handlers_.callbackmap_ = IO.getHandlers().insert<septentrio_gnss_driver_msgs::msg::PosCovGeodetic>("5906");
-		g_poscovgeodetic_publisher = create_publisher<septentrio_gnss_driver_msgs::msg::PosCovGeodetic>("/poscovgeodetic", durable_qos);
+		g_poscovgeodetic_publisher = create_publisher<septentrio_gnss_driver_msgs::msg::PosCovGeodetic>("poscovgeodetic", durable_qos);
 	}
 	if (publish_atteuler_ == true)
 	{
 		IO.handlers_.callbackmap_ = IO.getHandlers().insert<septentrio_gnss_driver_msgs::msg::AttEuler>("5938");
-		g_atteuler_publisher = create_publisher<septentrio_gnss_driver_msgs::msg::AttEuler>("/atteuler", durable_qos);
+		g_atteuler_publisher = create_publisher<septentrio_gnss_driver_msgs::msg::AttEuler>("atteuler", durable_qos);
 	}
 	if (publish_attcoveuler_ == true)
 	{
 		IO.handlers_.callbackmap_ = IO.getHandlers().insert<septentrio_gnss_driver_msgs::msg::AttCovEuler>("5939");
-		g_attcoveuler_publisher = create_publisher<septentrio_gnss_driver_msgs::msg::AttCovEuler>("/attcoveuler", durable_qos);
+		g_attcoveuler_publisher = create_publisher<septentrio_gnss_driver_msgs::msg::AttCovEuler>("attcoveuler", durable_qos);
 	}
 	if (g_publish_gpst == true)
 	{
 		IO.handlers_.callbackmap_ = IO.getHandlers().insert<int32_t>("GPST");
-		g_gpst_publisher = create_publisher<sensor_msgs::msg::TimeReference>("/gpst", durable_qos);
+		g_gpst_publisher = create_publisher<sensor_msgs::msg::TimeReference>("gpst", durable_qos);
 	}
 	if (g_publish_navsatfix == true)
 	{
@@ -694,7 +694,7 @@ void rosaic_node::ROSaicNode::defineMessages()
 			RCLCPP_ERROR(this->get_logger(), "For a proper NavSatFix message, please set the publish/pvtgeodetic and the publish/poscovgeodetic ROSaic parameters both to true.");
 		}
 		IO.handlers_.callbackmap_ = IO.getHandlers().insert<sensor_msgs::msg::NavSatFix>("NavSatFix");
-		g_navsatfix_publisher = create_publisher<sensor_msgs::msg::NavSatFix>("/navsatfix", durable_qos);
+		g_navsatfix_publisher = create_publisher<sensor_msgs::msg::NavSatFix>("navsatfix", durable_qos);
 	}
 	if (g_publish_gpsfix == true)
 	{
@@ -708,7 +708,7 @@ void rosaic_node::ROSaicNode::defineMessages()
 		IO.handlers_.callbackmap_ = IO.getHandlers().insert<int32_t>("4027"); // MeasEpoch block
 		IO.handlers_.callbackmap_ = IO.getHandlers().insert<int32_t>("4001"); // DOP block
 		IO.handlers_.callbackmap_ = IO.getHandlers().insert<int32_t>("5908"); // VelCovGeodetic block
-		g_gpsfix_publisher = create_publisher<gps_msgs::msg::GPSFix>("/gpsfix", durable_qos);
+		g_gpsfix_publisher = create_publisher<gps_msgs::msg::GPSFix>("gpsfix", durable_qos);
 	}
 	if (g_publish_pose == true)
 	{
@@ -718,7 +718,7 @@ void rosaic_node::ROSaicNode::defineMessages()
 			RCLCPP_ERROR(this->get_logger(), "For a proper PoseWithCovarianceStamped message, please set the publish/pvtgeodetic, publish/poscovgeodetic, publish_atteuler and publish_attcoveuler ROSaic parameters all to true.");
 		}
 		IO.handlers_.callbackmap_ = IO.getHandlers().insert<geometry_msgs::msg::PoseWithCovarianceStamped>("PoseWithCovarianceStamped");
-		g_posewithcovariancestamped_publisher = create_publisher<geometry_msgs::msg::PoseWithCovarianceStamped>("/pose", durable_qos);
+		g_posewithcovariancestamped_publisher = create_publisher<geometry_msgs::msg::PoseWithCovarianceStamped>("pose", durable_qos);
 	}
 	if (g_publish_diagnostics == true)
 	{
@@ -726,7 +726,7 @@ void rosaic_node::ROSaicNode::defineMessages()
 		IO.handlers_.callbackmap_ = IO.getHandlers().insert<int32_t>("4014"); // ReceiverStatus block
 		IO.handlers_.callbackmap_ = IO.getHandlers().insert<int32_t>("4082"); // QualityInd block
 		IO.handlers_.callbackmap_ = IO.getHandlers().insert<int32_t>("5902"); // ReceiverSetup block
-		g_diagnosticarray_publisher = create_publisher<diagnostic_msgs::msg::DiagnosticArray>("/diagnostics", durable_qos);
+		g_diagnosticarray_publisher = create_publisher<diagnostic_msgs::msg::DiagnosticArray>("diagnostics", durable_qos);
 	}
 	// so on and so forth...
 	RCLCPP_DEBUG(this->get_logger(), "Leaving defineMessages() method");
