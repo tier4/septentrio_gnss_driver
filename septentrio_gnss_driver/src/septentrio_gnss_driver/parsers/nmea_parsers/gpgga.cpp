@@ -112,7 +112,7 @@ septentrio_gnss_driver_msgs::msg::Gpgga::SharedPtr GpggaParser::parseASCII(const
 	msg->lon_dir = sentence.get_body()[5];
 	valid = valid && parsing_utilities::parseUInt32(sentence.get_body()[6], msg->gps_qual);
 	valid = valid && parsing_utilities::parseUInt32(sentence.get_body()[7], msg->num_sats);
-	RCLCPP_INFO(rclcpp::get_logger("gpgga"), "Valid is %s so far with number of satellites in use being %s", valid ? "true" : "false", sentence.get_body()[7].c_str());
+	// RCLCPP_INFO(rclcpp::get_logger("gpgga"), "Valid is %s so far with number of satellites in use being %s", valid ? "true" : "false", sentence.get_body()[7].c_str());
 
 	valid = valid && parsing_utilities::parseFloat(sentence.get_body()[8], msg->hdop);
 	valid = valid && parsing_utilities::parseFloat(sentence.get_body()[9], msg->alt);
