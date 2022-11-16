@@ -1170,6 +1170,13 @@ bool io_comm_rx::RxMessage::read(std::string message_key, bool search)
 				}
 			}
 			g_pvtcartesian_publisher->publish(*msg);
+			septentrio_gnss_driver_msgs::msg::Gprmc::SharedPtr twist_msg = std::make_shared<septentrio_gnss_driver_msgs::msg::Gprmc>();
+			// twist_msg->header.stamp  = msg->header.stamp;
+			// twist_msg->header.frame_id = "earth";
+			// twist_msg->twist.linear.x = msg->vx;
+			// twist_msg->twist.linear.y = msg->vy;
+			// twist_msg->twist.linear.z = msg->vz;
+			// g_twistwithcovariancestamped_publisher->publish(*twist_msg);
 			break;
 		}
 		case evPVTGeodetic: // Position and velocity in geodetic coordinate frame (ENU frame)
