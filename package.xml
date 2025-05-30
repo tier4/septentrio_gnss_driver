@@ -38,6 +38,7 @@
   <exec_depend condition="$ROS_VERSION == 1">message_runtime</exec_depend>
   
   <depend>diagnostic_msgs</depend>
+  <depend>diagnostic_updater</depend>
   <depend>nmea_msgs</depend>
   <depend>sensor_msgs</depend>
   <depend>geometry_msgs</depend>

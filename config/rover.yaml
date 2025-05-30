@@ -200,3 +200,57 @@ ins_vsm:
 # logger
 
 activate_debug_log: false
+
+# topic rate diagnostics
+diagnostics:
+  rate_bound_status:
+    pvt:
+      period_ok:
+        min_ms: 80
+        max_ms: 120
+      period_warn:
+        min_ms: 50
+        max_ms: 150
+    rest:
+      period_ok:
+        min_ms: 450
+        max_ms: 550
+      period_warn:
+        min_ms: 400
+        max_ms: 600
+  monitor_topics:
+    # For both GNSS and INS Rxs  
+    navsatfix: false
+    gpsfix: true
+    gpgga: false
+    gprmc: false
+    gpst: false
+    measepoch: false
+    pvtcartesian: false
+    pvtgeodetic: true
+    basevectorcart: false
+    basevectorgeod: false
+    poscovcartesian: false
+    poscovgeodetic: true
+    velcovcartesian: false
+    velcovgeodetic: true
+    atteuler: true
+    attcoveuler: true
+    pose: false
+    twist: false
+    aimplusstatus: true
+    galauthstatus: false
+    # For GNSS Rx only
+    gpgsa: false
+    gpgsv: false
+    # For INS Rx only
+    insnavcart: false
+    insnavgeod: false
+    extsensormeas: false
+    imusetup: false
+    velsensorsetup: false
+    exteventinsnavcart: false
+    exteventinsnavgeod: false
+    imu: false
+    localization: false
+    localization_ecef: false

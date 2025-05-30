@@ -152,6 +152,7 @@ elseif(ament_cmake_FOUND)
   find_package(rclcpp_components REQUIRED)
   find_package(rosidl_default_generators REQUIRED)
   find_package(diagnostic_msgs REQUIRED)
+  find_package(diagnostic_updater REQUIRED)
   find_package(nmea_msgs REQUIRED)
   find_package(sensor_msgs REQUIRED)
   find_package(geometry_msgs REQUIRED)
@@ -202,6 +203,7 @@ elseif(ament_cmake_FOUND)
   rclcpp
   rclcpp_components
   diagnostic_msgs
+  diagnostic_updater
   nmea_msgs
   sensor_msgs
   geometry_msgs

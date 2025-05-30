@@ -332,6 +332,94 @@ struct Settings
     bool publish_tf;
     //! Whether or not to publish the tf of the localization
     bool publish_tf_ecef;
+    //! Minimum period [ms] of the ok rate bound status for pvt topics
+    uint32_t monitor_pvt_period_ok_min_ms;
+    //! Maximum period [ms] of the ok rate bound status for pvt topics
+    uint32_t monitor_pvt_period_ok_max_ms;
+    //! Minimum period [ms] of the warn rate bound status for pvt topics
+    uint32_t monitor_pvt_period_warn_min_ms;
+    //! Maximum period [ms] of the warn rate bound status for pvt topics
+    uint32_t monitor_pvt_period_warn_max_ms;
+    //! Minimum period [ms] of the ok rate bound status for rest topics
+    uint32_t monitor_rest_period_ok_min_ms;
+    //! Maximum period [ms] of the ok rate bound status for rest topics
+    uint32_t monitor_rest_period_ok_max_ms;
+    //! Minimum period [ms] of the warn rate bound status for rest topics
+    uint32_t monitor_rest_period_warn_min_ms;
+    //! Maximum period [ms] of the warn rate bound status for rest topics
+    uint32_t monitor_rest_period_warn_max_ms;
+    //! Whether or not to monitor topic rate of the GGA message
+    bool monitor_gpgga;
+    //! Whether or not to monitor topic rate of the RMC message
+    bool monitor_gprmc;
+    //! Whether or not to monitor topic rate of the GSA message
+    bool monitor_gpgsa;
+    //! Whether or not to monitor topic rate of the GSV message
+    bool monitor_gpgsv;
+    //! Whether or not to monitor topic rate of the MeasEpoch message
+    bool monitor_measepoch;
+    //! Whether or not to monitor topic rate of the RFStatus and AIMPlusStatus message and
+    //! diagnostics
+    bool monitor_aimplusstatus;
+    //! Whether or not to monitor topic rate of the GALAuthStatus message and diagnostics
+    bool monitor_galauthstatus;
+    //! Whether or not to monitor topic rate of the PVTCartesianMsg
+    //! message
+    bool monitor_pvtcartesian;
+    //! Whether or not to monitor topic rate of the PVTGeodeticMsg message
+    bool monitor_pvtgeodetic;
+    //! Whether or not to monitor topic rate of the BaseVectorCartMsg
+    //! message
+    bool monitor_basevectorcart;
+    //! Whether or not to monitor topic rate of the BaseVectorGeodMsg message
+    bool monitor_basevectorgeod;
+    //! Whether or not to monitor topic rate of the PosCovCartesianMsg
+    //! message
+    bool monitor_poscovcartesian;
+    //! Whether or not to publish the PosCovGeodeticMsg
+    //! message
+    bool monitor_poscovgeodetic;
+    //! Whether or not to publish the VelCovCartesianMsg
+    //! message
+    bool monitor_velcovcartesian;
+    //! Whether or not to monitor topic rate of the VelCovGeodeticMsg
+    //! message
+    bool monitor_velcovgeodetic;
+    //! Whether or not to monitor topic rate of the AttEulerMsg message
+    bool monitor_atteuler;
+    //! Whether or not to monitor topic rate of the AttCovEulerMsg message
+    bool monitor_attcoveuler;
+    //! Whether or not to monitor topic rate of the INSNavCartMsg message
+    bool monitor_insnavcart;
+    //! Whether or not to publish the INSNavGeodMsg message
+    bool monitor_insnavgeod;
+    //! Whether or not to monitor topic rate of the IMUSetupMsg message
+    bool monitor_imusetup;
+    //! Whether or not to monitor topic rate of the VelSensorSetupMsg message
+    bool monitor_velsensorsetup;
+    //! Whether or not to monitor topic rate of the ExtEventINSNavGeodMsg message
+    bool monitor_exteventinsnavgeod;
+    //! Whether or not to publish the ExtEventINSNavCartMsg message
+    bool monitor_exteventinsnavcart;
+    //! Whether or not to monitor topic rate of the ExtSensorMeasMsg message
+    bool monitor_extsensormeas;
+    //! Whether or not to publish the TimeReferenceMsg message with GPST
+    bool monitor_gpst;
+    //! Whether or not to monitor topic rate of the NavSatFixMsg message
+    bool monitor_navsatfix;
+    //! Whether or not to monitor topic rate of the GpsFixMsg message
+    bool monitor_gpsfix;
+    //! Whether or not to monitor topic rate of the PoseWithCovarianceStampedMsg message
+    bool monitor_pose;
+    //! Whether or not to monitor topic rate of the ImuMsg message
+    bool monitor_imu;
+    //! Whether or not to monitor topic rate of the LocalizationMsg message
+    bool monitor_localization;
+    //! Whether or not to monitor topic rate of the LocalizationMsg message
+    bool monitor_localization_ecef;
+    //! Whether or not to monitor topic rate of the TwistWithCovarianceStampedMsg message
+    bool monitor_twist;
+
     //! Wether local frame should be inserted into tf
     bool insert_local_frame = false;
     //! Frame id of the local frame to be inserted

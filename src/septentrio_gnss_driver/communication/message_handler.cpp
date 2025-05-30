@@ -327,14 +327,14 @@ namespace io {
                     (last_qualityind_.indicators[i] & indicators_value_mask) >> 8);
             }
         }
-        gnss_status.hardware_id = serialnumber;
-        gnss_status.name = "septentrio_driver: Quality indicators";
+        gnss_status.hardware_id = settings_->frame_id;
+        gnss_status.name = std::string(node_->get_fully_qualified_name()) + ": Quality indicators";
         gnss_status.message =
             "GNSS quality Indicators (from 0 for low quality to 10 for high quality, 15 if unknown)";
         msg.status.push_back(gnss_status);
         DiagnosticStatusMsg receiver_status;
-        receiver_status.hardware_id = serialnumber;
-        receiver_status.name = "septentrio_driver: receiver status";
+        receiver_status.hardware_id = settings_->frame_id;
+        receiver_status.name = std::string(node_->get_fully_qualified_name()) + ": Receiver status";
         receiver_status.message = "Receiver status";
         receiver_status.values.resize(5);
         receiver_status.values[0].key = "ExtError";
@@ -383,8 +383,8 @@ namespace io {
         DiagnosticArrayMsg msg;
         DiagnosticStatusMsg diagOsnma;
 
-        diagOsnma.hardware_id = last_receiversetup_.rx_serial_number;
-        diagOsnma.name = "septentrio_driver: OSNMA";
+        diagOsnma.hardware_id = settings_->frame_id;
+        diagOsnma.name = std::string(node_->get_fully_qualified_name()) + ": OSNMA";
         diagOsnma.message = "Current status of the OSNMA authentication";
 
         diagOsnma.values.resize(6);
@@ -476,8 +476,8 @@ namespace io {
         AimPlusStatusMsg aimMsg;
         DiagnosticArrayMsg msg;
         DiagnosticStatusMsg diagRf;
-        diagRf.hardware_id = last_receiversetup_.rx_serial_number;
-        diagRf.name = "septentrio_driver: AIM+ status";
+        diagRf.hardware_id = settings_->frame_id;
+        diagRf.name = std::string(node_->get_fully_qualified_name()) + ": AIM+ status";
         diagRf.message =
             "Current status of the AIM+ interference and spoofing mitigation";
 
@@ -2125,6 +2125,7 @@ namespace io {
                 wait(timestampFromRos(msg.header.stamp));
             }
             node_->publishMessage<M>(topic, msg);
+            tick_relay_->tick_topic(topic);
         } else
         {
             node_->log(
@@ -2171,7 +2172,7 @@ namespace io {
 
     void MessageHandler::parseSbf(const std::shared_ptr<Telegram>& telegram)
     {
-
+        tick_relay_->tick_liveness();
         uint16_t sbfId = parsing_utilities::getId(telegram->message);
 
         /*node_->log(log_level::DEBUG, "ROSaic reading SBF block " +
@@ -2731,6 +2732,7 @@ namespace io {
 
     void MessageHandler::parseNmea(const std::shared_ptr<Telegram>& telegram)
     {
+        tick_relay_->tick_liveness();
         std::string message(telegram->message.begin(), telegram->message.end());
         /*node_->log(
           LogLevel::DEBUG,

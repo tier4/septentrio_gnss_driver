@@ -62,6 +62,7 @@
 #include <cassert> // for assert
 #include <cstddef>
 #include <map>
+#include <memory>
 #include <sstream>
 // Boost includes
 #include <boost/call_traits.hpp>
@@ -76,6 +77,8 @@
 #include <septentrio_gnss_driver/abstraction/typedefs_ros1.hpp>
 #endif
 #include <septentrio_gnss_driver/communication/telegram.hpp>
+#include <septentrio_gnss_driver/diagnostics/rate_bound_status.hpp>
+#include <septentrio_gnss_driver/diagnostics/tick_relay.hpp>
 #include <septentrio_gnss_driver/crc/crc.hpp>
 #include <septentrio_gnss_driver/parsers/nmea_parsers/gpgga.hpp>
 #include <septentrio_gnss_driver/parsers/nmea_parsers/gpgsa.hpp>
@@ -150,6 +153,7 @@ namespace io {
         MessageHandler(ROSaicNodeBase* node) :
             node_(node), settings_(node->settings()), unix_time_(0)
         {
+            tick_relay_ = std::make_unique<custom_diagnostic_tasks::TickRelay>(node);
         }
 
         void setLeapSeconds()
@@ -205,6 +209,12 @@ namespace io {
          * @brief Pointer to settings struct
          */
         const Settings* settings_;
+
+
+        /**
+         * @brief Pointer to the tick relay
+         */
+        std::unique_ptr<custom_diagnostic_tasks::TickRelay> tick_relay_;
 
         /**
          * @brief Map of NMEA messgae IDs and uint8_t
