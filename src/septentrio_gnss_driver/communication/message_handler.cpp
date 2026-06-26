@@ -1375,7 +1375,7 @@ namespace io {
         }
         case evRTKFixed:
         {
-            msg.status.status = NavSatStatusMsg::STATUS_FIX;
+            msg.status.status = NavSatStatusMsg::STATUS_GBAS_FIX;
             break;
         }
         case evRTKFloat:
